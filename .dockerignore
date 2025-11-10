@@ -1,0 +1,14 @@
+# Build artifacts and dependencies — not needed in the image. Tracked sources
+# are restored at runtime via `git reset --hard <base_commit>`.
+**/node_modules
+**/dist
+**/build
+**/.env
+**/.env.*
+**/*.log
+backend/server
+backend/main
+site
+
+# IMPORTANT: .git is intentionally NOT ignored. The task harness needs the full
+# commit history to reset the working tree to a base commit at runtime.
