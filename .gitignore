@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+frontend/dist/
+frontend/build/
+backend/server
+backend/main
+backend/tmp/
+
+# Environment files — never commit
+.env
+.env.local
+.env.*.local
+frontend/.env
+frontend/.env.local
+backend/.env
+backend/.env.local
+*.env.local
+
+# Sensitive captured data
+*.har
+
+# AI / tooling state
+.claude/
+
+# Supabase local dev
+supabase/.branches/
+supabase/.temp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+docker-compose.override.yml
+
+# Logs
+*.log
+
+# Go test cache
+*.test
