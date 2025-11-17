@@ -61,3 +61,80 @@ type Contest struct {
 	ExternalID string    `json:"external_id"`
 	HeldAt     time.Time `json:"held_at"`
 	SyncedAt   time.Time `json:"synced_at"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+type ContestStanding struct {
+	ID             string `json:"id"`
+	ContestID      string `json:"contest_id"`
+	UserID         string `json:"user_id"`
+	Rank           int    `json:"rank"`
+	OldRating      *int   `json:"old_rating"`
+	NewRating      *int   `json:"new_rating"`
+	ProblemsSolved int    `json:"problems_solved"`
+	UpsolvedCount  int    `json:"upsolved_count"`
+	// Joined
+	User *User `json:"user,omitempty"`
+}
+
+type SquadTrack struct {
+	ID        string       `json:"id"`
+	SquadID   string       `json:"squad_id"`
+	Title     string       `json:"title"`
+	CreatedAt time.Time    `json:"created_at"`
+	Topics    []SquadTopic `json:"topics,omitempty"`
+}
+
+type SquadTopic struct {
+	ID         string         `json:"id"`
+	TrackID    string         `json:"track_id"`
+	Title      string         `json:"title"`
+	OrderIndex int            `json:"order_index"`
+	CreatedAt  time.Time      `json:"created_at"`
+	Problems   []TopicProblem `json:"problems,omitempty"`
+}
+
+type TopicProblem struct {
+	TopicID   string    `json:"topic_id"`
+	ProblemID string    `json:"problem_id"`
+	AddedAt   time.Time `json:"added_at"`
+	Problem   *Problem  `json:"problem,omitempty"`
+}
+
+type Editorial struct {
+	ID        string    `json:"id"`
+	ProblemID string    `json:"problem_id"`
+	UserID    string    `json:"user_id"`
+	ContentMD string    `json:"content_md"`
+	CreatedAt time.Time `json:"created_at"`
+	Score     int       `json:"score"`
+	UserVote  *int      `json:"user_vote,omitempty"`
+	Author    *User     `json:"author,omitempty"`
+}
+
+type Announcement struct {
+	ID        string    `json:"id"`
+	AuthorID  string    `json:"author_id"`
+	SquadID   *string   `json:"squad_id"`
+	Title     string    `json:"title"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+	// Joined
+	Author    *User   `json:"author,omitempty"`
+	SquadName *string `json:"squad_name,omitempty"`
+}
+
+type Invitation struct {
+	ID        string     `json:"id"`
+	Email     string     `json:"email"`
+	Token     string     `json:"token"`
+	CreatedBy *string    `json:"created_by"`
+	ExpiresAt time.Time  `json:"expires_at"`
+	UsedAt    *time.Time `json:"used_at"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+type Verse struct {
+	Text      string `json:"text"`
+	Reference string `json:"reference"`
+}
