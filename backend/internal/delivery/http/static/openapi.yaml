@@ -1,0 +1,1639 @@
+openapi: 3.0.3
+info:
+  title: Focus ASTU CP Hub API
+  version: 1.0.0
+  description: |
+    REST API for the Focus ASTU CP Hub — a competitive programming platform for ASTU students.
+
+    ## Authentication
+    Most endpoints require a Supabase-issued JWT passed as a Bearer token in the
+    `Authorization` header.
+
+    ```
+    Authorization: Bearer <supabase_jwt>
+    ```
+
+    The extension uses an **API key** (generated per-user) passed in the same header
+    instead of a JWT.
+
+    ## Roles
+    | Role | Level | Description |
+    |------|-------|-------------|
+    | `COMMUNITY` | 0 | Read-only visitor |
+    | `SQUAD_MEMBER` | 1 | Active club member |
+    | `SQUAD_LEAD` | 2 | Can manage squad curriculum |
+    | `ADMIN` | 3 | Can manage all users & invitations |
+    | `SUPER_ADMIN` | 4 | Can toggle platform-wide settings |
+
+  contact:
+    name: Focus ASTU CP Hub
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080/api
+    description: Local development
+  - url: https://api.focusastu.com/api
+    description: Production
+
+tags:
+  - name: Health
+    description: Service health check
+  - name: Public
+    description: Unauthenticated endpoints
+  - name: Auth
+    description: Profile setup and API key management (JWT required, account may be inactive)
+  - name: Users
+    description: User profile management (active account required)
+  - name: Problems
+    description: Problem library
+  - name: Submissions
+    description: Submission logging
+  - name: Contests
+    description: Contest listing and standings
+  - name: Editorials
+    description: Community editorial write-ups
+  - name: Announcements
+    description: Club announcements
+  - name: Squads
+    description: Squad curriculum management
+  - name: Admin
+    description: Admin-only management endpoints
+
+paths:
+  # ── Health ─────────────────────────────────────────────────────────────
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: healthz
+      responses:
+        "200":
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  # ── Public ─────────────────────────────────────────────────────────────
+  /verse:
+    get:
+      tags: [Public]
+      summary: Daily Bible verse
+      operationId: getVerse
+      responses:
+        "200":
+          description: A verse object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Verse"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+
+  /system/signup-status:
+    get:
+      tags: [Public]
+      summary: Check if open signup is enabled
+      operationId: getSignupStatus
+      responses:
+        "200":
+          description: Signup open flag
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  open:
+                    type: boolean
+
+  /invite/validate:
+    get:
+      tags: [Public]
+      summary: Validate an invitation token
+      operationId: validateInvite
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Valid token — returns the associated email
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email:
+                    type: string
+                    format: email
+                  token:
+                    type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "410":
+          description: Token expired or already used
+
+  /announcements/public:
+    get:
+      tags: [Public]
+      summary: Latest global announcements (no auth needed)
+      operationId: listPublicAnnouncements
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        "200":
+          description: List of announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+
+  /stats/public:
+    get:
+      tags: [Public]
+      summary: Platform-wide aggregate stats for the landing page
+      operationId: getPublicStats
+      responses:
+        "200":
+          description: Aggregate stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_members:
+                    type: integer
+                  total_problems_solved:
+                    type: integer
+                  total_contests:
+                    type: integer
+
+  # ── Auth (JWT, account may be inactive) ───────────────────────────────
+  /users/me/complete-profile:
+    post:
+      tags: [Auth]
+      summary: Complete profile after first sign-in
+      description: |
+        Must be called before the account is considered **active**.
+        `full_name`, `telegram_handle`, and `codeforces_handle` are required.
+      operationId: completeProfile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileInput"
+      responses:
+        "200":
+          description: Updated user object
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /users/me/api-key:
+    get:
+      tags: [Auth]
+      summary: Check if the caller has an API key
+      operationId: hasAPIKey
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Boolean flag
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  has_api_key:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Auth]
+      summary: Generate a new API key (replaces any existing key)
+      operationId: generateAPIKey
+      security:
+        - BearerAuth: []
+      responses:
+        "201":
+          description: Raw API key — shown **once only**, store it securely
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  api_key:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      tags: [Auth]
+      summary: Revoke API key
+      operationId: revokeAPIKey
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Key revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: revoked
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Users (active account required) ────────────────────────────────────
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get the authenticated user's profile
+      operationId: getMe
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [Users]
+      summary: Update the authenticated user's profile
+      operationId: updateMe
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileInput"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /users/{userID}:
+    get:
+      tags: [Users]
+      summary: Get any user's public profile
+      operationId: getUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/userID"
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /users/{userID}/submissions:
+    get:
+      tags: [Submissions]
+      summary: List submissions by user
+      operationId: listSubmissionsByUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/userID"
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: List of submissions (with embedded problem)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Submission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Problems ─────────────────────────────────────────────────────────
+  /problems:
+    get:
+      tags: [Problems]
+      summary: List all problems in the library
+      operationId: listProblems
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            $ref: "#/components/schemas/Platform"
+        - name: tag
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of problems
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Problem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Problems]
+      summary: Add a problem to the library
+      description: Requires `SQUAD_LEAD` or above.
+      operationId: createProblem
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [platform, external_id, external_link, name]
+              properties:
+                platform:
+                  $ref: "#/components/schemas/Platform"
+                external_id:
+                  type: string
+                  example: "two-sum"
+                external_link:
+                  type: string
+                  format: uri
+                name:
+                  type: string
+                  example: Two Sum
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  example: [array, hash-table]
+      responses:
+        "201":
+          description: Created problem
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Problem already exists in library
+
+  /problems/search:
+    get:
+      tags: [Problems]
+      summary: Full-text search across problem names
+      operationId: searchProblems
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query (returns up to 20 results)
+      responses:
+        "200":
+          description: Matching problems
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Problem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /problems/preview:
+    get:
+      tags: [Problems]
+      summary: Preview problem metadata from a URL before adding it
+      description: Requires `SQUAD_LEAD` or above.
+      operationId: previewProblem
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: url
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uri
+          example: https://leetcode.com/problems/two-sum/
+      responses:
+        "200":
+          description: Auto-fetched problem metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ── Submissions ───────────────────────────────────────────────────────
+  /submissions:
+    post:
+      tags: [Submissions]
+      summary: Log a solved problem submission
+      description: |
+        Used by the browser extension to automatically record accepted submissions.
+        Provide either `problem_url` **or** the combination of `platform` + `external_id`.
+      operationId: createSubmission
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [language, code]
+              properties:
+                problem_url:
+                  type: string
+                  format: uri
+                  description: Full URL — used to resolve platform and external_id
+                platform:
+                  $ref: "#/components/schemas/Platform"
+                external_id:
+                  type: string
+                problem_name:
+                  type: string
+                external_link:
+                  type: string
+                  format: uri
+                language:
+                  type: string
+                  example: python3
+                code:
+                  type: string
+                source:
+                  type: string
+                  example: extension
+                contest_id:
+                  type: string
+                  nullable: true
+      responses:
+        "201":
+          description: Created submission
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          description: Problem not found in library
+
+  /submissions/{submissionID}:
+    get:
+      tags: [Submissions]
+      summary: Get a single submission with embedded problem and user
+      operationId: getSubmission
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/submissionID"
+      responses:
+        "200":
+          description: Submission detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Contests ──────────────────────────────────────────────────────────
+  /contests:
+    get:
+      tags: [Contests]
+      summary: List all synced contests
+      operationId: listContests
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of contests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /contests/{contestID}/standings:
+    get:
+      tags: [Contests]
+      summary: Get standings for a contest
+      operationId: getContestStandings
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/contestID"
+      responses:
+        "200":
+          description: Standings list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ContestStanding"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /squads/{squadID}/contests/sync:
+    post:
+      tags: [Contests]
+      summary: Sync a Codeforces contest for a squad
+      description: |
+        Pulls standings from the Codeforces API and stores them.
+        Squad leads can only sync for their own squad; admins can sync any.
+        Requires `SQUAD_LEAD` or above.
+      operationId: syncContestForSquad
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/squadID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contest_id]
+              properties:
+                contest_id:
+                  type: string
+                  description: Codeforces contest ID
+                  example: "2109"
+      responses:
+        "200":
+          description: Sync result
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          description: Upstream Codeforces API error
+
+  # ── Editorials ────────────────────────────────────────────────────────
+  /editorials:
+    get:
+      tags: [Editorials]
+      summary: List editorials for a problem
+      operationId: listEditorials
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: problem_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of editorials (with user vote injected)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Editorial"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Editorials]
+      summary: Post a new editorial
+      operationId: createEditorial
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [problem_id, content_md]
+              properties:
+                problem_id:
+                  type: string
+                content_md:
+                  type: string
+                  description: Markdown content
+      responses:
+        "201":
+          description: Created editorial
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Editorial"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /editorials/{editorialID}:
+    put:
+      tags: [Editorials]
+      summary: Update an editorial (author only)
+      operationId: updateEditorial
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/editorialID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content_md]
+              properties:
+                content_md:
+                  type: string
+      responses:
+        "200":
+          description: Updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      tags: [Editorials]
+      summary: Delete an editorial (author only)
+      operationId: deleteEditorial
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/editorialID"
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /editorials/{editorialID}/vote:
+    post:
+      tags: [Editorials]
+      summary: Upvote or downvote an editorial
+      operationId: voteEditorial
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/editorialID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  type: integer
+                  enum: [1, -1]
+                  description: 1 = upvote, -1 = downvote
+      responses:
+        "200":
+          description: Vote recorded
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ── Announcements ─────────────────────────────────────────────────────
+  /announcements:
+    get:
+      tags: [Announcements]
+      summary: List announcements visible to the authenticated user
+      operationId: listAnnouncements
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Announcement"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Announcements]
+      summary: Post a squad announcement
+      description: Requires `SQUAD_LEAD` or above. Posts to the caller's squad.
+      operationId: postSquadAnnouncement
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Created announcement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ── Squads ────────────────────────────────────────────────────────────
+  /squads/{squadID}/tracks:
+    get:
+      tags: [Squads]
+      summary: Get full curriculum (tracks → topics → problems) for a squad
+      operationId: getSquadCurriculum
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/squadID"
+      responses:
+        "200":
+          description: Tracks with nested topics and problems
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SquadTrack"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Squads]
+      summary: Create a track in the squad curriculum
+      description: Requires `SQUAD_LEAD` (own squad only) or `ADMIN`.
+      operationId: createTrack
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/squadID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+      responses:
+        "201":
+          description: Created track
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SquadTrack"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /tracks/{trackID}/topics:
+    post:
+      tags: [Squads]
+      summary: Add a topic to a track
+      description: Requires `SQUAD_LEAD` (own squad only) or `ADMIN`.
+      operationId: addTopic
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: trackID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+      responses:
+        "201":
+          description: Created topic
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SquadTopic"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /topics/{topicID}/problems:
+    post:
+      tags: [Squads]
+      summary: Assign a problem to a topic
+      description: Requires `SQUAD_LEAD` (own squad only) or `ADMIN`.
+      operationId: assignProblemToTopic
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: topicID
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [problem_id]
+              properties:
+                problem_id:
+                  type: string
+      responses:
+        "201":
+          description: Assigned
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ── Admin ─────────────────────────────────────────────────────────────
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List all users
+      description: Requires `ADMIN` or above.
+      operationId: adminListUsers
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: All users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/users/{userID}/role:
+    put:
+      tags: [Admin]
+      summary: Set a user's role
+      description: Requires `ADMIN`. Admins cannot promote above their own role.
+      operationId: adminSetRole
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/userID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  $ref: "#/components/schemas/Role"
+      responses:
+        "200":
+          description: Updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/users/{userID}/squad:
+    put:
+      tags: [Admin]
+      summary: Assign a user to a squad
+      description: Requires `ADMIN` or above.
+      operationId: adminSetSquad
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/userID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [squad_id]
+              properties:
+                squad_id:
+                  type: string
+      responses:
+        "200":
+          description: Updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/users/{userID}/ban:
+    put:
+      tags: [Admin]
+      summary: Ban or unban a user
+      description: Requires `ADMIN`. Cannot ban yourself.
+      operationId: adminSetBan
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/userID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_banned]
+              properties:
+                is_banned:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/invitations:
+    get:
+      tags: [Admin]
+      summary: List all invitations
+      description: Requires `ADMIN` or above.
+      operationId: adminListInvitations
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: All invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invitation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Admin]
+      summary: Create an invitation for an email address
+      description: Requires `ADMIN` or above.
+      operationId: adminCreateInvitation
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "201":
+          description: Created invitation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/announcements:
+    post:
+      tags: [Admin, Announcements]
+      summary: Post a global (platform-wide) announcement
+      description: Requires `ADMIN` or above.
+      operationId: adminPostGlobalAnnouncement
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnnouncementInput"
+      responses:
+        "201":
+          description: Created announcement
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Announcement"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/contests/sync:
+    post:
+      tags: [Admin, Contests]
+      summary: Sync a Codeforces contest (admin, no squad restriction)
+      description: Requires `ADMIN` or above.
+      operationId: adminSyncContest
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contest_id]
+              properties:
+                contest_id:
+                  type: string
+      responses:
+        "200":
+          description: Sync result
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "502":
+          description: Upstream Codeforces API error
+
+  /admin/system/signup:
+    put:
+      tags: [Admin]
+      summary: Toggle open signup on/off
+      description: Requires `SUPER_ADMIN`.
+      operationId: adminToggleSignup
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [open]
+              properties:
+                open:
+                  type: boolean
+      responses:
+        "200":
+          description: New signup state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signup_open:
+                    type: boolean
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /admin/repair/stats:
+    post:
+      tags: [Admin]
+      summary: Recompute all user problem_count values from actual submissions
+      description: |
+        Repairs counters that may have drifted due to past bugs. Returns the
+        number of users whose count was updated.
+        Requires `ADMIN` or above.
+      operationId: adminReconcileStats
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Repair result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users_updated:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+# ── Components ─────────────────────────────────────────────────────────────
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase JWT or user-generated API key
+
+  parameters:
+    userID:
+      name: userID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    submissionID:
+      name: submissionID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    contestID:
+      name: contestID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    editorialID:
+      name: editorialID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    squadID:
+      name: squadID
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: Bad request — missing or invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Authenticated but insufficient role
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ServiceUnavailable:
+      description: Upstream service temporarily unavailable
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    Role:
+      type: string
+      enum: [SUPER_ADMIN, ADMIN, SQUAD_LEAD, SQUAD_MEMBER, COMMUNITY]
+
+    Platform:
+      type: string
+      enum: [LEETCODE, CODEFORCES, ATCODER, HACKERRANK, GFG, OTHER]
+
+    Verse:
+      type: object
+      properties:
+        text:
+          type: string
+        reference:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        telegram_handle:
+          type: string
+        linkedin_url:
+          type: string
+          nullable: true
+        leetcode_handle:
+          type: string
+          nullable: true
+        codeforces_handle:
+          type: string
+        atcoder_handle:
+          type: string
+          nullable: true
+        squad_id:
+          type: string
+          nullable: true
+        role:
+          $ref: "#/components/schemas/Role"
+        is_banned:
+          type: boolean
+        is_active:
+          type: boolean
+        problem_count:
+          type: integer
+        daily_streak:
+          type: integer
+        last_submission_date:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    ProfileInput:
+      type: object
+      required: [full_name, telegram_handle, codeforces_handle]
+      properties:
+        full_name:
+          type: string
+        telegram_handle:
+          type: string
+        codeforces_handle:
+          type: string
+        leetcode_handle:
+          type: string
+          nullable: true
+        atcoder_handle:
+          type: string
+          nullable: true
+        linkedin_url:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+
+    Problem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        platform:
+          $ref: "#/components/schemas/Platform"
+        external_id:
+          type: string
+        external_link:
+          type: string
+          format: uri
+        tags:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Submission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        problem_id:
+          type: string
+          format: uuid
+        language:
+          type: string
+        code:
+          type: string
+        is_contest:
+          type: boolean
+        contest_id:
+          type: string
+          nullable: true
+        source:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+        problem:
+          $ref: "#/components/schemas/Problem"
+        user:
+          $ref: "#/components/schemas/User"
+
+    Contest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        platform:
+          $ref: "#/components/schemas/Platform"
+        external_id:
+          type: string
+        held_at:
+          type: string
+          format: date-time
+        synced_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    ContestStanding:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        contest_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        rank:
+          type: integer
+        old_rating:
+          type: integer
+          nullable: true
+        new_rating:
+          type: integer
+          nullable: true
+        problems_solved:
+          type: integer
+        upsolved_count:
+          type: integer
+        user:
+          $ref: "#/components/schemas/User"
+
+    Editorial:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        problem_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        content_md:
+          type: string
+          description: Markdown-formatted editorial content
+        created_at:
+          type: string
+          format: date-time
+        score:
+          type: integer
+          description: Net vote score (upvotes − downvotes)
+        user_vote:
+          type: integer
+          nullable: true
+          description: Caller's current vote (1, -1, or null)
+        author:
+          $ref: "#/components/schemas/User"
+
+    Announcement:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        author_id:
+          type: string
+          format: uuid
+        squad_id:
+          type: string
+          nullable: true
+          description: null means global announcement
+        title:
+          type: string
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        author:
+          $ref: "#/components/schemas/User"
+        squad_name:
+          type: string
+          nullable: true
+
+    AnnouncementInput:
+      type: object
+      required: [title, body]
+      properties:
+        title:
+          type: string
+        body:
+          type: string
+
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        token:
+          type: string
+        created_by:
+          type: string
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+        used_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    SquadTrack:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        squad_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        topics:
+          type: array
+          items:
+            $ref: "#/components/schemas/SquadTopic"
+
+    SquadTopic:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        track_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        order_index:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        problems:
+          type: array
+          items:
+            $ref: "#/components/schemas/Problem"
