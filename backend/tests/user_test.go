@@ -119,3 +119,152 @@ func TestAPIKeyLifecycle(t *testing.T) {
 	repo := newFakeUserRepo()
 	repo.add(&domain.User{ID: "u1"})
 	uc := usecase.NewUserUseCase(repo)
+
+	raw, err := uc.GenerateAPIKey(ctx, "u1")
+	if err != nil {
+		t.Fatalf("GenerateAPIKey: %v", err)
+	}
+	if len(raw) != 64 {
+		t.Errorf("raw key length = %d, want 64", len(raw))
+	}
+	has, _ := uc.HasAPIKey(ctx, "u1")
+	if !has {
+		t.Error("user should have an API key after generation")
+	}
+	found, err := uc.ValidateAPIKey(ctx, raw)
+	if err != nil || found == nil || found.ID != "u1" {
+		t.Errorf("ValidateAPIKey returned %v, %v", found, err)
+	}
+	if err := uc.RevokeAPIKey(ctx, "u1"); err != nil {
+		t.Fatalf("RevokeAPIKey: %v", err)
+	}
+	has, _ = uc.HasAPIKey(ctx, "u1")
+	if has {
+		t.Error("API key should be gone after revoke")
+	}
+}
+
+// ─────────────────────────── Admin operations ───────────────────────────
+
+func TestSetRoleCannotChangeSelf(t *testing.T) {
+	ctx := context.Background()
+	uc := usecase.NewAdminUserUseCase(newFakeUserRepo(), newFakeSquadRepo())
+	if err := uc.SetRole(ctx, "u1", domain.RoleAdmin, "u1", domain.RoleSquadLead, nil); err == nil {
+		t.Error("should not be able to change own role")
+	}
+}
+
+func TestSetRoleAdminAssignsSquadLead(t *testing.T) {
+	ctx := context.Background()
+	users := newFakeUserRepo()
+	users.add(&domain.User{ID: "target", Role: domain.RoleCommunity})
+	uc := usecase.NewAdminUserUseCase(users, newFakeSquadRepo())
+	if err := uc.SetRole(ctx, "admin", domain.RoleAdmin, "target", domain.RoleSquadLead, nil); err != nil {
+		t.Fatalf("admin assigning squad lead: %v", err)
+	}
+	if users.users["target"].Role != domain.RoleSquadLead {
+		t.Error("target role not updated")
+	}
+}
+
+func TestSetRoleAdminCannotAssignAdmin(t *testing.T) {
+	ctx := context.Background()
+	users := newFakeUserRepo()
+	users.add(&domain.User{ID: "target", Role: domain.RoleCommunity})
+	uc := usecase.NewAdminUserUseCase(users, newFakeSquadRepo())
+	if err := uc.SetRole(ctx, "admin", domain.RoleAdmin, "target", domain.RoleAdmin, nil); err == nil {
+		t.Error("an admin must not be able to assign the admin role")
+	}
+}
+
+func TestSetRoleSuperAdminAssignsAdmin(t *testing.T) {
+	ctx := context.Background()
+	users := newFakeUserRepo()
+	users.add(&domain.User{ID: "target", Role: domain.RoleCommunity})
+	uc := usecase.NewAdminUserUseCase(users, newFakeSquadRepo())
+	if err := uc.SetRole(ctx, "super", domain.RoleSuperAdmin, "target", domain.RoleAdmin, nil); err != nil {
+		t.Fatalf("super admin assigning admin: %v", err)
+	}
+}
+
+func TestSetRoleCannotModifyHigherTarget(t *testing.T) {
+	ctx := context.Background()
+	users := newFakeUserRepo()
+	users.add(&domain.User{ID: "target", Role: domain.RoleAdmin})
+	uc := usecase.NewAdminUserUseCase(users, newFakeSquadRepo())
+	if err := uc.SetRole(ctx, "admin", domain.RoleAdmin, "target", domain.RoleSquadLead, nil); err == nil {
+		t.Error("an admin must not modify an admin-level target")
+	}
+}
+
+func TestSetRoleAssignsSquad(t *testing.T) {
+	ctx := context.Background()
+	users := newFakeUserRepo()
+	users.add(&domain.User{ID: "target", Role: domain.RoleCommunity})
+	uc := usecase.NewAdminUserUseCase(users, newFakeSquadRepo())
+	sid := "squad-7"
+	if err := uc.SetRole(ctx, "super", domain.RoleSuperAdmin, "target", domain.RoleSquadLead, &sid); err != nil {
+		t.Fatalf("SetRole with squad: %v", err)
+	}
+	if users.users["target"].SquadID == nil || *users.users["target"].SquadID != sid {
+		t.Error("squad id not assigned alongside role")
+	}
+}
+
+func TestSetBan(t *testing.T) {
+	ctx := context.Background()
+	users := newFakeUserRepo()
+	users.add(&domain.User{ID: "u1"})
+	uc := usecase.NewAdminUserUseCase(users, newFakeSquadRepo())
+	if err := uc.SetBan(ctx, "u1", true); err != nil {
+		t.Fatal(err)
+	}
+	if !users.users["u1"].IsBanned {
+		t.Error("user should be banned")
+	}
+	_ = uc.SetBan(ctx, "u1", false)
+	if users.users["u1"].IsBanned {
+		t.Error("user should be unbanned")
+	}
+}
+
+func TestSquadCRUD(t *testing.T) {
+	ctx := context.Background()
+	squads := newFakeSquadRepo()
+	uc := usecase.NewAdminUserUseCase(newFakeUserRepo(), squads)
+
+	s, err := uc.CreateSquad(ctx, "Alpha")
+	if err != nil || s.Name != "Alpha" {
+		t.Fatalf("CreateSquad: %v %v", s, err)
+	}
+	updated, err := uc.UpdateSquad(ctx, s.ID, "Beta")
+	if err != nil || updated.Name != "Beta" {
+		t.Fatalf("UpdateSquad: %v %v", updated, err)
+	}
+	list, _ := uc.ListSquads(ctx)
+	if len(list) != 1 {
+		t.Errorf("ListSquads len = %d, want 1", len(list))
+	}
+	if err := uc.DeleteSquad(ctx, s.ID); err != nil {
+		t.Fatal(err)
+	}
+	list, _ = uc.ListSquads(ctx)
+	if len(list) != 0 {
+		t.Errorf("after delete len = %d, want 0", len(list))
+	}
+}
+
+func TestSetSquad(t *testing.T) {
+	ctx := context.Background()
+	users := newFakeUserRepo()
+	users.add(&domain.User{ID: "u1"})
+	uc := usecase.NewAdminUserUseCase(users, newFakeSquadRepo())
+	sid := "squad-9"
+	if err := uc.SetSquad(ctx, "u1", &sid); err != nil {
+		t.Fatal(err)
+	}
+	got := users.users["u1"].SquadID
+	if got == nil || *got != sid {
+		t.Error("squad not assigned")
+	}
+}
