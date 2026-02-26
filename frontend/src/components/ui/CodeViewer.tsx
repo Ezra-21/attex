@@ -57,3 +57,75 @@ export function CodeBlock({ code, startLine = 1, highlight = [], fontSize = 12.5
     <div className="mono" style={{ background: THEME.bg, fontSize, lineHeight: 1.65, overflow: 'hidden' }}>
       {lines.map((ln, i) => {
         const hl = highlight.includes(startLine + i);
+        return (
+          <div key={i} style={{
+            display: 'flex',
+            background: hl ? 'rgba(243,181,60,0.07)' : 'transparent',
+            boxShadow: hl ? `inset 2px 0 0 ${THEME.kw}` : 'none',
+          }}>
+            <span style={{
+              width: 44, flexShrink: 0, textAlign: 'right', padding: '0 14px 0 0',
+              color: THEME.gutter, userSelect: 'none', background: THEME.line,
+            }}>{startLine + i}</span>
+            <code style={{ padding: '0 16px', whiteSpace: 'pre', flex: 1 }}>
+              {tokenizeLine(ln).map((tok, j) => (
+                <span key={j} style={{ color: tok.c }}>{tok.t}</span>
+              ))}
+            </code>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+interface CodeViewerProps {
+  code: string;
+  lang?: string;
+  file?: string;
+  highlight?: number[];
+  meta?: React.ReactNode;
+}
+
+export function CodeViewer({ code, lang = 'C++', file = 'solution.cpp', highlight = [], meta }: CodeViewerProps) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
+
+  return (
+    <div style={{ borderRadius: 12, overflow: 'hidden', border: `1px solid ${T.border}`, background: THEME.bg }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+        borderBottom: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.02)',
+      }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {['#ff5f56', '#ffbd2e', '#27c93f'].map((c) => (
+            <span key={c} style={{ width: 10, height: 10, borderRadius: 5, background: c, opacity: 0.85 }} />
+          ))}
+        </div>
+        <span className="mono" style={{ fontSize: 12, color: T.text2, marginLeft: 6 }}>{file}</span>
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
+          {meta}
+          <span className="mono" style={{ fontSize: 11, color: T.text3 }}>{lang}</span>
+          <button
+            onClick={handleCopy}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              background: T.surface3, border: `1px solid ${T.border}`,
+              color: copied ? T.gain : T.text2, fontFamily: T.fM, fontSize: 11,
+              padding: '4px 9px', borderRadius: 6, cursor: 'pointer',
+            }}
+          >
+            <Icon name={copied ? 'check' : 'copy'} size={12} />
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        </span>
+      </div>
+      <CodeBlock code={code} highlight={highlight} />
+    </div>
+  );
+}
