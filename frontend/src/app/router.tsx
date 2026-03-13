@@ -81,3 +81,105 @@ function RouteErrorPage() {
         </p>
         <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
           <Btn kind="primary" iconR="arrow" onClick={() => navigate('/')}>Go home</Btn>
+          <Btn kind="ghost" onClick={() => navigate(-1)}>Go back</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <div style={{ background: '#0a0c10', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 28, height: 28, border: '2px solid #272d39', borderTopColor: '#25d6c1', borderRadius: '50%', animation: 'fa-spin 0.7s linear infinite' }} />
+    </div>
+  );
+}
+
+const router = createBrowserRouter([
+  // ── Landing shell — public, no sidebar ───────────────────────────────────
+  {
+    element: <LandingErrorBoundary><Outlet /></LandingErrorBoundary>,
+    errorElement: <RouteErrorPage />,
+    children: [
+      { path: '/', element: <LandingPage /> },
+      { path: '/announcements', element: <AnnouncementsPage /> },
+      { path: '/privacy', element: <PrivacyPage /> },
+      { path: '/terms', element: <TermsPage /> },
+    ],
+  },
+
+  // ── Auth pages — public only, redirect if already logged in ─────────────
+  {
+    element: <LandingErrorBoundary><PublicOnlyRoute /></LandingErrorBoundary>,
+    children: [
+      { path: '/login',            element: <LoginPage /> },
+      { path: '/signup',           element: <SignupPage /> },
+      { path: '/forgot-password',  element: <ForgotPasswordPage /> },
+    ],
+  },
+
+  // ── Auth flows that must be reachable even with an active session ─────────
+  // /invite: Supabase sets a session from the hash before the page mounts,
+  //   so it cannot live inside PublicOnlyRoute (would redirect to /dashboard).
+  // /reset-password: same — Supabase injects the recovery session via hash.
+  {
+    element: <LandingErrorBoundary><Outlet /></LandingErrorBoundary>,
+    children: [
+      { path: '/invite',         element: <InvitePage /> },
+      { path: '/reset-password', element: <ResetPasswordPage /> },
+    ],
+  },
+
+  // ── Profile completion — auth required, inactive only ────────────────────
+  {
+    element: <LandingErrorBoundary><ActiveGuard /></LandingErrorBoundary>,
+    children: [
+      { path: '/complete-profile', element: <CompleteProfilePage /> },
+    ],
+  },
+
+  // ── App shell — auth + active required ───────────────────────────────────
+  {
+    element: <AppErrorBoundary><ProtectedRoute /></AppErrorBoundary>,
+    children: [
+      { path: '/dashboard',              element: <PageErrorBoundary><DashboardPage /></PageErrorBoundary> },
+      { path: '/problems',               element: <PageErrorBoundary><ProblemsPage /></PageErrorBoundary> },
+      { path: '/editorials',             element: <PageErrorBoundary><EditorialsListPage /></PageErrorBoundary> },
+      { path: '/submissions/:id',        element: <PageErrorBoundary><SubmissionViewPage /></PageErrorBoundary> },
+      { path: '/problems/:id/editorials',element: <PageErrorBoundary><EditorialPage /></PageErrorBoundary> },
+      { path: '/contests',               element: <PageErrorBoundary><ContestsPage /></PageErrorBoundary> },
+      { path: '/contests/:id',           element: <PageErrorBoundary><ContestDetailPage /></PageErrorBoundary> },
+      { path: '/profile/:userId',        element: <PageErrorBoundary><ProfilePage /></PageErrorBoundary> },
+      { path: '/users',                  element: <PageErrorBoundary><UsersPage /></PageErrorBoundary> },
+      { path: '/settings/extension',     element: <PageErrorBoundary><SettingsPage /></PageErrorBoundary> },
+      // Squad — SQUAD_MEMBER+
+      {
+        element: <ProtectedRoute requiredRole="SQUAD_MEMBER" />,
+        children: [{ path: '/squad', element: <PageErrorBoundary><SquadPage /></PageErrorBoundary> }],
+      },
+      // Admin — ADMIN+ (lazy-loaded)
+      {
+        element: <ProtectedRoute requiredRole="ADMIN" />,
+        children: [
+          {
+            path: '/admin',
+            element: (
+              <PageErrorBoundary>
+                <Suspense fallback={<Spinner />}>
+                  <AdminPage />
+                </Suspense>
+              </PageErrorBoundary>
+            ),
+          },
+        ],
+      },
+    ],
+  },
+  // ── Catch-all 404 ────────────────────────────────────────────────────────
+  { path: '*', element: <NotFoundPage /> },
+]);
+
+export function Router() {
+  return <RouterProvider router={router} />;
+}
