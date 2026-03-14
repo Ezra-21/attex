@@ -334,3 +334,413 @@ function InvitationsTab({ isMobile }: { isMobile: boolean }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '320px 1fr', gap: 20 }}>
       {/* Generate form */}
+      <Card>
+        <h3 style={{ margin: '0 0 16px', fontFamily: T.fD, fontSize: 15, fontWeight: 600, color: T.text }}>Generate invitation</h3>
+        <div style={{ marginBottom: 7, fontFamily: T.fD, fontSize: 12.5, fontWeight: 500, color: T.text2 }}>Email to invite</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 9, padding: '10px 13px', marginBottom: 8 }}>
+          <Icon name="mail" size={16} style={{ color: T.text3 }} />
+          <input
+            type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@astu.edu.et"
+            onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+            style={{ fontFamily: T.fB, fontSize: 13.5, color: T.text, background: 'transparent', border: 'none', outline: 'none', flex: 1 }}
+          />
+        </div>
+        <div style={{ fontFamily: T.fB, fontSize: 12, color: T.text3, marginBottom: 16, lineHeight: 1.5 }}>
+          A token locked to this email, valid 72 hours.
+        </div>
+        {genError && <div style={{ marginBottom: 12, padding: '10px 13px', borderRadius: 9, background: 'rgba(242,101,79,0.10)', border: '1px solid rgba(242,101,79,0.3)', fontFamily: T.fB, fontSize: 12.5, color: T.loss }}>{genError}</div>}
+        {generated && (
+          <div style={{ marginBottom: 14, padding: '12px 13px', borderRadius: 10, background: T.accentGhost, border: `1px solid ${T.accentLine}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 6 }}>
+              <div style={{ fontFamily: T.fD, fontSize: 12.5, fontWeight: 600, color: T.accentText, flex: 1 }}>
+                Invite link generated
+              </div>
+              {generated.emailSent
+                ? <span style={{ fontFamily: T.fM, fontSize: 10, color: T.gain }}>✓ Email sent</span>
+                : <span style={{ fontFamily: T.fM, fontSize: 10, color: T.warn }}>⚠ Email not sent</span>
+              }
+            </div>
+            {generated.emailWarning && (
+              <div style={{ fontFamily: T.fB, fontSize: 11, color: T.warn, marginBottom: 6, lineHeight: 1.4 }}>
+                {generated.emailWarning}
+              </div>
+            )}
+            <div className="mono" style={{ fontSize: 11, color: T.text2, wordBreak: 'break-all', marginBottom: 8 }}>{generated.url}</div>
+            <Btn kind="accentGhost" size="sm" icon="copy" full onClick={() => handleCopy(generated.url, 'new')}>
+              {copiedIdx === 'new' ? 'Copied!' : 'Copy link'}
+            </Btn>
+          </div>
+        )}
+        <Btn kind="primary" full icon="plus" disabled={isPending || !email.trim()} onClick={handleGenerate}>
+          {isPending ? 'Generating…' : 'Generate invite link'}
+        </Btn>
+      </Card>
+
+      {/* Recent invitations */}
+      <div>
+        <h3 style={{ margin: '0 0 14px', fontFamily: T.fD, fontSize: 15, fontWeight: 600, color: T.text }}>Recent invitations</h3>
+        <Card pad={0} style={{ overflow: 'hidden' }}>
+          {invitations.length === 0 && (
+            <div style={{ padding: '24px', textAlign: 'center', fontFamily: T.fB, fontSize: 14, color: T.text3 }}>No invitations yet.</div>
+          )}
+          {invitations.map((iv, i) => {
+            const used    = !!iv.used_at;
+            const expired = !used && new Date(iv.expires_at) < new Date();
+            const status  = used ? 'used' : expired ? 'expired' : 'pending';
+
+            return (
+              <div key={iv.id} style={{ padding: '12px 14px', borderTop: i ? `1px solid ${T.borderSoft}` : 'none' }}>
+                {/* Row 1: icon + email */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <Icon name="mail" size={14} style={{ color: T.text3, flexShrink: 0 }} />
+                  <span style={{ fontFamily: T.fD, fontSize: 13, color: T.text, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {iv.email}
+                  </span>
+                </div>
+                {/* Row 2: token + expiry + action */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 24 }}>
+                  <span className="mono" style={{ fontSize: 10.5, color: T.text3 }}>
+                    {iv.token.slice(0, 4)}…{iv.token.slice(-3)}
+                  </span>
+                  <span style={{ fontFamily: T.fM, fontSize: 11, color: status === 'pending' ? T.warn : T.text3 }}>
+                    {status === 'used' ? 'used' : status === 'expired' ? 'expired' : hoursUntil(iv.expires_at)}
+                  </span>
+                  <div style={{ marginLeft: 'auto' }}>
+                    {status === 'pending'
+                      ? <Btn kind="ghost" size="sm" icon={copiedIdx === iv.id ? 'check' : 'copy'} onClick={() => handleCopy(`${window.location.origin}/invite?token=${iv.token}`, iv.id)}>
+                          {copiedIdx === iv.id ? 'Copied' : 'Copy'}
+                        </Btn>
+                      : <span style={{ fontFamily: T.fM, fontSize: 11, color: status === 'used' ? T.gain : T.text3, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                          <Icon name={status === 'used' ? 'check' : 'ban'} size={12} />
+                          {status === 'used' ? 'Used' : 'Expired'}
+                        </span>
+                    }
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ── Squads tab ────────────────────────────────────────────────────────────
+function SquadsTab({ isMobile }: { isMobile: boolean }) {
+  const { data: squads = [], isLoading }     = useSquads();
+  const { mutateAsync, isPending }           = useCreateSquad();
+  const { mutateAsync: renameSquad }         = useUpdateSquadName();
+  const { mutateAsync: deleteSquad }         = useDeleteSquad();
+  const [name, setName]                      = useState('');
+  const [error, setError]                    = useState('');
+  const [created, setCreated]                = useState<string | null>(null);
+  const [editingId, setEditingId]            = useState<string | null>(null);
+  const [editingName, setEditingName]        = useState('');
+  const [confirmDeleteId, setConfirmDeleteId]= useState<string | null>(null);
+  const [actionError, setActionError]        = useState('');
+
+  async function handleCreate() {
+    if (!name.trim()) return;
+    setError(''); setCreated(null);
+    try {
+      await mutateAsync(name.trim());
+      setCreated(name.trim());
+      setName('');
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(msg ?? 'Failed to create squad.');
+    }
+  }
+
+  async function handleRename(squadId: string) {
+    if (!editingName.trim()) return;
+    setActionError('');
+    try {
+      await renameSquad({ squadId, name: editingName.trim() });
+      setEditingId(null);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setActionError(msg ?? 'Failed to rename squad.');
+    }
+  }
+
+  async function handleDelete(squadId: string) {
+    setActionError('');
+    try {
+      await deleteSquad(squadId);
+      setConfirmDeleteId(null);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setActionError(msg ?? 'Failed to delete squad.');
+    }
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '280px 1fr', gap: 20 }}>
+      {/* Create form */}
+      <Card>
+        <h3 style={{ margin: '0 0 16px', fontFamily: T.fD, fontSize: 15, fontWeight: 600, color: T.text }}>Create squad</h3>
+        <div style={{ marginBottom: 7, fontFamily: T.fD, fontSize: 12.5, fontWeight: 500, color: T.text2 }}>Squad name</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 9, padding: '10px 13px', marginBottom: 8 }}>
+          <Icon name="profile" size={16} style={{ color: T.text3 }} />
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Alpha Squad"
+            onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+            style={{ fontFamily: T.fB, fontSize: 13.5, color: T.text, background: 'transparent', border: 'none', outline: 'none', flex: 1 }}
+          />
+        </div>
+        {error && (
+          <div style={{ marginBottom: 12, padding: '10px 13px', borderRadius: 9, background: 'rgba(242,101,79,0.10)', border: '1px solid rgba(242,101,79,0.3)', fontFamily: T.fB, fontSize: 12.5, color: T.loss }}>
+            {error}
+          </div>
+        )}
+        {created && (
+          <div style={{ marginBottom: 12, padding: '10px 13px', borderRadius: 9, background: 'rgba(69,212,131,0.10)', border: '1px solid rgba(69,212,131,0.3)', fontFamily: T.fB, fontSize: 12.5, color: T.gain }}>
+            Squad "{created}" created.
+          </div>
+        )}
+        <Btn kind="primary" full icon="plus" disabled={isPending || !name.trim()} onClick={handleCreate}>
+          {isPending ? 'Creating…' : 'Create squad'}
+        </Btn>
+      </Card>
+
+      {/* Squad list */}
+      <div>
+        <h3 style={{ margin: '0 0 14px', fontFamily: T.fD, fontSize: 15, fontWeight: 600, color: T.text }}>
+          All squads ({squads.length})
+        </h3>
+        {actionError && (
+          <div style={{ marginBottom: 10, padding: '10px 13px', borderRadius: 9, background: 'rgba(242,101,79,0.10)', border: '1px solid rgba(242,101,79,0.3)', fontFamily: T.fB, fontSize: 12.5, color: T.loss }}>
+            {actionError}
+          </div>
+        )}
+        <Card pad={0} style={{ overflow: 'hidden' }}>
+          {isLoading && [1,2,3].map((i) => (
+            <div key={i} style={{ padding: '14px 18px', borderTop: i > 1 ? `1px solid ${T.borderSoft}` : 'none', display: 'flex', gap: 10, alignItems: 'center' }}>
+              <div style={{ width: 28, height: 28, borderRadius: 7, background: T.surface3 }} />
+              <div style={{ width: 120, height: 13, borderRadius: 4, background: T.surface3 }} />
+            </div>
+          ))}
+          {!isLoading && squads.length === 0 && (
+            <div style={{ padding: '24px', textAlign: 'center', fontFamily: T.fB, fontSize: 14, color: T.text3 }}>
+              No squads yet. Create one to get started.
+            </div>
+          )}
+          {squads.map((s, i) => (
+            <div key={s.id} style={{ borderTop: i ? `1px solid ${T.borderSoft}` : 'none' }}>
+              {/* Normal row */}
+              {editingId !== s.id && confirmDeleteId !== s.id && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px' }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: T.accentGhost, border: `1px solid ${T.accentLine}`, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <Icon name="profile" size={14} style={{ color: T.accent }} />
+                  </div>
+                  <span style={{ fontFamily: T.fD, fontSize: 13.5, fontWeight: 500, color: T.text, flex: 1 }}>{s.name}</span>
+                  <span className="mono" style={{ fontSize: 10.5, color: T.text3 }}>{s.id.slice(0, 8)}…</span>
+                  <Btn kind="ghost" size="sm" onClick={() => { setEditingId(s.id); setEditingName(s.name); setActionError(''); }}>
+                    Rename
+                  </Btn>
+                  <Btn kind="ghost" size="sm" onClick={() => { setConfirmDeleteId(s.id); setActionError(''); }}>
+                    Delete
+                  </Btn>
+                </div>
+              )}
+
+              {/* Inline rename */}
+              {editingId === s.id && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: T.surface2 }}>
+                  <input
+                    autoFocus
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleRename(s.id); if (e.key === 'Escape') setEditingId(null); }}
+                    style={{ flex: 1, fontFamily: T.fB, fontSize: 13.5, color: T.text, background: T.surface, border: `1px solid ${T.border}`, borderRadius: 7, padding: '6px 10px', outline: 'none' }}
+                  />
+                  <Btn kind="primary" size="sm" disabled={!editingName.trim()} onClick={() => handleRename(s.id)}>Save</Btn>
+                  <Btn kind="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Btn>
+                </div>
+              )}
+
+              {/* Delete confirmation */}
+              {confirmDeleteId === s.id && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(242,101,79,0.06)', flexWrap: 'wrap' }}>
+                  <Icon name="ban" size={14} style={{ color: T.loss, flexShrink: 0 }} />
+                  <span style={{ fontFamily: T.fB, fontSize: 12.5, color: T.text2, flex: 1 }}>
+                    Delete <strong style={{ color: T.text }}>{s.name}</strong>? Members will be unassigned.
+                  </span>
+                  <Btn kind="ghost" size="sm" onClick={() => handleDelete(s.id)} style={{ color: T.loss, borderColor: 'rgba(242,101,79,0.4)' }}>
+                    Yes, delete
+                  </Btn>
+                  <Btn kind="ghost" size="sm" onClick={() => setConfirmDeleteId(null)}>Cancel</Btn>
+                </div>
+              )}
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ── Contest sync tab ──────────────────────────────────────────────────────
+function SyncTab({ squadId: _squadId, isMobile }: { squadId: string | null; isMobile: boolean }) {
+  const [cfId, setCfId]           = useState('');
+  const [result, setResult]       = useState<string | null>(null);
+  const [syncError, setSyncError] = useState('');
+  const { data: history = [] }    = useRecentSyncs();
+  const { mutateAsync, isPending } = useSyncContest(null);
+
+  async function handleSync() {
+    if (!cfId.trim()) return;
+    setSyncError(''); setResult(null);
+    try {
+      const res = await mutateAsync(cfId.trim());
+      const d   = res.data as { matched_users?: number; standings_saved?: number };
+      setResult(`Synced — ${d.matched_users ?? 0} users matched, ${d.standings_saved ?? 0} standings saved.`);
+      setCfId('');
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setSyncError(msg ?? 'Sync failed — check the contest ID and try again.');
+    }
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '340px 1fr', gap: 20 }}>
+      {/* Sync form */}
+      <Card>
+        <h3 style={{ margin: '0 0 16px', fontFamily: T.fD, fontSize: 15, fontWeight: 600, color: T.text }}>Sync a Codeforces contest</h3>
+        <div style={{ marginBottom: 7, fontFamily: T.fD, fontSize: 12.5, fontWeight: 500, color: T.text2 }}>Contest ID</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 9, padding: '10px 13px', marginBottom: 8 }}>
+          <Icon name="contests" size={16} style={{ color: T.text3 }} />
+          <input
+            value={cfId} onChange={(e) => setCfId(e.target.value)}
+            placeholder="e.g. 2050" className="mono"
+            onKeyDown={(e) => e.key === 'Enter' && handleSync()}
+            style={{ fontFamily: T.fM, fontSize: 13.5, color: T.text, background: 'transparent', border: 'none', outline: 'none', flex: 1 }}
+          />
+        </div>
+        <div style={{ fontFamily: T.fB, fontSize: 12, color: T.text3, marginBottom: 16, lineHeight: 1.5 }}>
+          Maps CF handles → portal users, records ranks and per-problem solves. Unmatched handles are skipped.
+        </div>
+        {syncError && <div style={{ marginBottom: 12, padding: '10px 13px', borderRadius: 9, background: 'rgba(242,101,79,0.10)', border: '1px solid rgba(242,101,79,0.3)', fontFamily: T.fB, fontSize: 12.5, color: T.loss }}>{syncError}</div>}
+        {result    && <div style={{ marginBottom: 12, padding: '10px 13px', borderRadius: 9, background: 'rgba(69,212,131,0.10)', border: '1px solid rgba(69,212,131,0.3)', fontFamily: T.fB, fontSize: 12.5, color: T.gain }}>{result}</div>}
+        <Btn kind="primary" full icon="bolt" disabled={isPending || !cfId.trim()} onClick={handleSync}>
+          {isPending ? 'Fetching…' : 'Fetch standings'}
+        </Btn>
+      </Card>
+
+      {/* Sync history */}
+      <div>
+        <h3 style={{ margin: '0 0 14px', fontFamily: T.fD, fontSize: 15, fontWeight: 600, color: T.text }}>Recently synced</h3>
+        <Card pad={0} style={{ overflow: 'hidden' }}>
+          {history.length === 0 && <div style={{ padding: '24px', textAlign: 'center', fontFamily: T.fB, fontSize: 14, color: T.text3 }}>No contests synced yet.</div>}
+          {history.map((c: Record<string, unknown>, i: number) => (
+            <div key={c.id as string} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderTop: i ? `1px solid ${T.borderSoft}` : 'none' }}>
+              <div style={{ width: 28, height: 28, borderRadius: 7, display: 'grid', placeItems: 'center', background: T.accentGhost, color: T.accent, flexShrink: 0 }}>
+                <Icon name="trophy" size={13} />
+              </div>
+              <span style={{ fontFamily: T.fD, fontSize: 13, color: T.text, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {c.name as string}
+              </span>
+              {!isMobile && (
+                <span className="mono" style={{ fontSize: 11, color: T.text3, flexShrink: 0 }}>#{c.external_id as string}</span>
+              )}
+              <span style={{ fontFamily: T.fM, fontSize: 11, color: T.text3, flexShrink: 0 }}>{relTime(c.synced_at as string)}</span>
+              <Verdict>synced</Verdict>
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────
+type Tab = 'users' | 'squads' | 'invites' | 'sync';
+
+export default function AdminPage() {
+  const appUser = useAppUser();
+  const [tab, setTab] = useState<Tab>('users');
+  const w = useWindowWidth();
+  const isMobile = w < BREAKPOINTS.tablet;
+
+  const { data: users = [] } = useAdminUsers();
+
+  if (appUser.isLoading) {
+    return (
+      <AppShell title="Admin" crumbs="Hub / Admin" userId="" role="ADMIN" userName="" squadName={null} scroll>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: 14, marginBottom: 22 }}>
+          <StatCardSk /><StatCardSk /><StatCardSk />
+        </div>
+        <div style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 14, overflow: 'hidden' }}>
+          {[1,2,3,4,5].map((i) => <UserRowSk key={i} />)}
+        </div>
+      </AppShell>
+    );
+  }
+
+  const isSuperAdmin = appUser.role === 'SUPER_ADMIN';
+  const totalMembers = users.length;
+  const active       = users.filter((u) => !u.is_banned).length;
+  const banned       = users.filter((u) => u.is_banned).length;
+
+  const TAB_LABELS: [Tab, string][] = [
+    ['users',   'Users'],
+    ['squads',  'Squads'],
+    ['invites', 'Invitations'],
+    ['sync',    'Contest sync'],
+  ];
+
+  return (
+    <AppShell
+      title="Admin"
+      crumbs="Hub / Admin"
+      userId={appUser.id}
+      role={appUser.role}
+      userName={appUser.fullName}
+      squadName={appUser.squadName}
+      scroll
+    >
+      <div style={{ maxWidth: 1120, margin: '0 auto' }}>
+        {/* Stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 22 }}>
+          <StatCard label="Total members" value={totalMembers} sub="registered accounts" accent={T.accent} icon="profile" />
+          <StatCard label="Active"        value={active}       sub="non-banned"          accent={T.gain}   icon="check" />
+          <StatCard label="Banned"        value={banned}       sub="write-locked"        accent={T.loss}   icon="ban" />
+        </div>
+
+        {/* Tab bar — full width on mobile */}
+        <div style={{
+          display: 'flex', gap: 4, background: T.surface2, padding: 4,
+          borderRadius: 11, border: `1px solid ${T.border}`,
+          width: isMobile ? '100%' : 'fit-content',
+          marginBottom: 18,
+        }}>
+          {TAB_LABELS.map(([k, l]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              style={{
+                flex: isMobile ? 1 : 'none',
+                padding: isMobile ? '9px 8px' : '9px 16px',
+                borderRadius: 8, border: 'none', cursor: 'pointer',
+                fontFamily: T.fD, fontSize: isMobile ? 12 : 13, fontWeight: 600,
+                color: tab === k ? '#04201d' : T.text2,
+                background: tab === k ? T.accent : 'transparent',
+                textAlign: 'center',
+              }}
+            >{l}</button>
+          ))}
+        </div>
+
+        {tab === 'users'   && <UsersTab isSuperAdmin={isSuperAdmin} selfId={appUser.id} isMobile={isMobile} />}
+        {tab === 'squads'  && <SquadsTab isMobile={isMobile} />}
+        {tab === 'invites' && <InvitationsTab isMobile={isMobile} />}
+        {tab === 'sync'    && <SyncTab squadId={appUser.squadId} isMobile={isMobile} />}
+      </div>
+    </AppShell>
+  );
+}
