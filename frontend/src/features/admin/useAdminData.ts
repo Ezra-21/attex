@@ -80,3 +80,103 @@ export function useCreateSquad() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (name: string) =>
+      api.post<Squad>('/api/admin/squads', { name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['squads'] });
+      qc.invalidateQueries({ queryKey: ['admin-squads'] });
+    },
+  });
+}
+
+export function useUpdateSquadName() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ squadId, name }: { squadId: string; name: string }) =>
+      api.put<Squad>(`/api/admin/squads/${squadId}`, { name }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['squads'] });
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+  });
+}
+
+export function useDeleteSquad() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (squadId: string) =>
+      api.delete(`/api/admin/squads/${squadId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['squads'] });
+      qc.invalidateQueries({ queryKey: ['admin-users'] });
+    },
+  });
+}
+
+// ── Invitations ───────────────────────────────────────────────────────────
+export interface Invitation {
+  id: string;
+  email: string;
+  token: string;
+  expires_at: string;
+  used_at: string | null;
+  created_at: string;
+}
+
+export function useInvitations() {
+  return useQuery({
+    queryKey: ['admin-invitations'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('invitations')
+        .select('id, email, token, expires_at, used_at, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []) as Invitation[];
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useGenerateInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (email: string) =>
+      api.post<{ token: string; invite_url: string; email_sent: boolean; email_warning?: string }>('/api/admin/invitations', { email }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-invitations'] }),
+  });
+}
+
+// ── Signup toggle (Super Admin only) ────────────────────────────────────
+export function useSignupStatus() {
+  return useQuery({
+    queryKey: ['signup-status'],
+    queryFn: () => api.get<{ open: boolean }>('/api/system/signup-status').then((r) => r.data.open),
+    staleTime: 60_000,
+  });
+}
+
+export function useToggleSignup() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (open: boolean) => api.put('/api/admin/system/signup', { open }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['signup-status'] }),
+  });
+}
+
+// ── Contest sync history (last N synced) ─────────────────────────────────
+export function useRecentSyncs() {
+  return useQuery({
+    queryKey: ['recent-syncs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('contests')
+        .select('id, name, external_id, synced_at')
+        .order('synced_at', { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 30_000,
+  });
+}
