@@ -72,3 +72,94 @@ export default function CompleteProfilePage() {
   return (
     <AuthShell
       wide
+      title="Complete your profile"
+      sub="Required before you can access the hub. You can edit handles later in Settings."
+    >
+      {/* Required fields */}
+      <Field
+        label="Full name" value={form.full_name} onChange={set('full_name')}
+        icon="profile" required placeholder="Abel Tadesse"
+      />
+      <Field
+        label="Telegram handle" value={form.telegram_handle} onChange={set('telegram_handle')}
+        mono required placeholder="abel_t"
+        hint="Required — how your squad reaches you (no @)."
+        right={<span style={{ fontFamily: T.fM, fontSize: 10, color: T.loss }}>REQUIRED</span>}
+      />
+
+      {/* Platform handles — two columns */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <Field
+          label="Codeforces handle" value={form.codeforces_handle} onChange={set('codeforces_handle')}
+          mono required placeholder="tourist"
+          hint="Required — used to match contest standings."
+          right={<span style={{ fontFamily: T.fM, fontSize: 10, color: T.loss }}>REQUIRED</span>}
+        />
+        <Field
+          label="LeetCode handle" value={form.leetcode_handle} onChange={set('leetcode_handle')}
+          mono placeholder="neal_wu"
+          hint="Optional."
+        />
+      </div>
+
+      <Field
+        label="AtCoder handle" value={form.atcoder_handle} onChange={set('atcoder_handle')}
+        mono placeholder="tourist"
+        hint="Optional. AtCoder problems are logged manually."
+      />
+
+      {/* Optional extras */}
+      <Field
+        label="LinkedIn URL (optional)" value={form.linkedin_url} onChange={set('linkedin_url')}
+        icon="link" placeholder="linkedin.com/in/…"
+      />
+
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: 'block', fontFamily: T.fD, fontSize: 12.5, fontWeight: 500, color: T.text2, marginBottom: 7 }}>
+          Bio (optional)
+        </label>
+        <textarea
+          value={form.bio}
+          onChange={(e) => set('bio')(e.target.value)}
+          placeholder="A short bio about yourself…"
+          rows={3}
+          style={{
+            width: '100%', background: T.surface, border: `1px solid ${T.border}`,
+            borderRadius: 9, padding: '11px 13px', resize: 'vertical',
+            fontFamily: T.fB, fontSize: 14, color: T.text, outline: 'none',
+            boxSizing: 'border-box', lineHeight: 1.5,
+          }}
+        />
+      </div>
+
+      {error && (
+        <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 9, background: 'rgba(242,101,79,0.10)', border: '1px solid rgba(242,101,79,0.3)', fontFamily: T.fB, fontSize: 12.5, color: T.loss }}>
+          {error}
+        </div>
+      )}
+
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20, cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={(e) => setAgreed(e.target.checked)}
+          style={{ marginTop: 2, accentColor: T.accent, width: 16, height: 16, flexShrink: 0, cursor: 'pointer' }}
+        />
+        <span style={{ fontFamily: T.fB, fontSize: 13, color: T.text2, lineHeight: 1.6 }}>
+          I have read and agree to the{' '}
+          <Link to="/terms" target="_blank" style={{ color: T.accentText, textDecoration: 'none' }}>Terms of Service</Link>
+          {' '}and{' '}
+          <Link to="/privacy" target="_blank" style={{ color: T.accentText, textDecoration: 'none' }}>Privacy Policy</Link>.
+        </span>
+      </label>
+
+      <Btn
+        kind="primary" full size="lg" iconR="arrow"
+        disabled={loading || !canSubmit}
+        onClick={handleSubmit}
+      >
+        {loading ? 'Saving…' : 'Finish & enter the hub'}
+      </Btn>
+    </AuthShell>
+  );
+}
