@@ -57,3 +57,75 @@ export default function ResetPasswordPage() {
           Back to sign in
         </Btn>
       </AuthShell>
+    );
+  }
+
+  if (state === 'done') {
+    return (
+      <AuthShell title="Password updated" sub="Your new password is set. You can now sign in.">
+        <div style={{
+          padding: '22px 20px', background: 'rgba(69,212,131,0.10)', border: '1px solid rgba(69,212,131,0.28)',
+          borderRadius: 12, display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 20,
+        }}>
+          <Icon name="check" size={20} style={{ color: T.gain, marginTop: 2, flexShrink: 0 }} />
+          <div style={{ fontFamily: T.fB, fontSize: 13.5, color: T.text, lineHeight: 1.5 }}>
+            Password changed successfully. Use it next time you sign in with password.
+          </div>
+        </div>
+        <Btn kind="primary" full size="lg" iconR="arrow" onClick={() => navigate('/dashboard')}>
+          Go to dashboard
+        </Btn>
+      </AuthShell>
+    );
+  }
+
+  const mismatch = confirm.length > 0 && password !== confirm;
+
+  return (
+    <AuthShell
+      title="Choose a new password"
+      sub="Pick something strong — at least 8 characters."
+    >
+      <Field
+        label="New password"
+        value={password}
+        onChange={setPassword}
+        icon="lock"
+        type="password"
+        hint="At least 8 characters."
+      />
+      <Field
+        label="Confirm password"
+        value={confirm}
+        onChange={setConfirm}
+        icon="lock"
+        type="password"
+        hint={mismatch ? 'Passwords do not match.' : undefined}
+      />
+
+      {mismatch && (
+        <div style={{
+          marginBottom: 14, padding: '10px 13px', borderRadius: 9,
+          background: 'rgba(242,101,79,0.10)', border: '1px solid rgba(242,101,79,0.3)',
+          fontFamily: T.fB, fontSize: 12.5, color: T.loss,
+        }}>Passwords do not match.</div>
+      )}
+
+      {state === 'error' && (
+        <div style={{
+          marginBottom: 14, padding: '10px 13px', borderRadius: 9,
+          background: 'rgba(242,101,79,0.10)', border: '1px solid rgba(242,101,79,0.3)',
+          fontFamily: T.fB, fontSize: 12.5, color: T.loss,
+        }}>{errMsg}</div>
+      )}
+
+      <Btn
+        kind="primary" full size="lg" icon="key"
+        disabled={state === 'saving' || password.length < 8 || password !== confirm}
+        onClick={handleSave}
+      >
+        {state === 'saving' ? 'Saving…' : 'Set new password'}
+      </Btn>
+    </AuthShell>
+  );
+}
