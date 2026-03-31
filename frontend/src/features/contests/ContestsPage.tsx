@@ -109,3 +109,138 @@ function SyncModal({ squadId, onClose }: { squadId: string | null; onClose: () =
             value={cfId}
             onChange={(e) => setCfId(e.target.value)}
             placeholder="e.g. 2050"
+            className="mono"
+            style={{ fontFamily: T.fM, fontSize: 13.5, color: T.text, background: 'transparent', border: 'none', outline: 'none', flex: 1 }}
+          />
+        </div>
+        <div style={{ fontFamily: T.fB, fontSize: 12, color: T.text3, marginBottom: 16, lineHeight: 1.5 }}>
+          Maps CF handles → portal users, records ranks and per-problem solves. Unmatched handles are skipped.
+        </div>
+
+        {error && (
+          <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 9, background: 'rgba(242,101,79,0.10)', border: '1px solid rgba(242,101,79,0.3)', fontFamily: T.fB, fontSize: 12.5, color: T.loss }}>
+            {error}
+          </div>
+        )}
+        {result && (
+          <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 9, background: 'rgba(69,212,131,0.10)', border: '1px solid rgba(69,212,131,0.3)', fontFamily: T.fB, fontSize: 12.5, color: T.gain }}>
+            {result}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <Btn kind="ghost" onClick={onClose}>Cancel</Btn>
+          <Btn kind="primary" icon="bolt" disabled={isPending || !cfId.trim()} onClick={handleSync}>
+            {isPending ? 'Fetching…' : 'Fetch standings'}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────
+export default function ContestsPage() {
+  const { user } = useAuth();
+  const appUser  = useAppUser();
+  const [filter, setFilter]     = useState<'all' | 'squad' | 'global'>('all');
+  const [showSync, setShowSync] = useState(false);
+
+  const { data: contests = [], isLoading } = useContests();
+  const { data: myStats } = useMyContestStats(user?.id);
+
+  const w = useWindowWidth();
+  const isMobile = w < BREAKPOINTS.tablet;
+
+  if (appUser.isLoading) {
+    return (
+      <AppShell title="Contests" crumbs="Hub / Contests" userId="" role="COMMUNITY" userName="" squadName={null}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: 14, marginBottom: 22 }}>
+          <StatCardSk /><StatCardSk /><StatCardSk />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {[1,2,3,4].map((i) => <CardRowSk key={i} />)}
+        </div>
+      </AppShell>
+    );
+  }
+
+  const canSync = appUser.role === 'SQUAD_LEAD' || appUser.role === 'ADMIN' || appUser.role === 'SUPER_ADMIN';
+
+  const filtered = contests.filter((c) => {
+    if (filter === 'squad')  return !!c.squad_name;
+    if (filter === 'global') return !c.squad_name;
+    return true;
+  });
+
+  return (
+    <>
+      <AppShell
+        title="Contests"
+        crumbs="Hub / Contests"
+        userId={appUser.id}
+        role={appUser.role}
+        userName={appUser.fullName}
+        squadName={appUser.squadName}
+        headerRight={
+          canSync
+            ? <Btn kind="accentGhost" size="sm" icon="plus" onClick={() => setShowSync(true)}>Sync CF contest</Btn>
+            : undefined
+        }
+      >
+        {/* Stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(3,1fr)', gap: 14, marginBottom: 22 }}>
+          <StatCard label="Contests run" value={contests.length} sub="all squads" accent={T.accent} icon="trophy" />
+          <StatCard
+            label="Your best rank"
+            value={myStats?.bestRank != null ? `#${myStats.bestRank}` : '—'}
+            sub="across all contests"
+            accent={T.ac}
+            icon="contests"
+          />
+          <StatCard
+            label="Awaiting upsolve"
+            value={myStats?.awaitingUpsolve ?? 0}
+            sub="contests with unsolved problems"
+            accent={T.warn}
+            icon="bolt"
+          />
+        </div>
+
+        {/* Filter row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+          <h2 style={{ margin: 0, fontFamily: T.fD, fontSize: 16, fontWeight: 600, color: T.text }}>Synced contests</h2>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {(['all', 'squad', 'global'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                style={{
+                  padding: '7px 12px', borderRadius: 8, fontFamily: T.fD, fontSize: 12.5, fontWeight: 500, cursor: 'pointer',
+                  color: filter === f ? '#04201d' : T.text2,
+                  background: filter === f ? T.accent : T.surface2,
+                  border: `1px solid ${filter === f ? T.accent : T.border}`,
+                }}
+              >
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* List */}
+        {isLoading && [1,2,3].map((i) => <CardRowSk key={i} />)}
+        {!isLoading && filtered.length === 0 && (
+          <div style={{ padding: 32, textAlign: 'center', fontFamily: T.fB, fontSize: 14, color: T.text3 }}>
+            No contests synced yet.
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {filtered.map((c) => <ContestCard key={c.id} c={c} />)}
+        </div>
+      </AppShell>
+
+      {showSync && <SyncModal squadId={appUser.squadId} onClose={() => setShowSync(false)} />}
+    </>
+  );
+}
