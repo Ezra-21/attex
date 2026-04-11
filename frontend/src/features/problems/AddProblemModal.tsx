@@ -108,3 +108,138 @@ export function AddProblemModal({ onClose }: Props) {
               {step === 'url' ? 'Add problem' : 'Confirm details'}
             </h2>
           </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text3, display: 'grid', placeItems: 'center' }}>
+            <Icon name="ban" size={18} />
+          </button>
+        </div>
+
+        {step === 'url' && (
+          <>
+            <Field label="Problem URL">
+              <input
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
+                placeholder="https://leetcode.com/problems/two-sum/"
+                autoFocus
+                style={{
+                  width: '100%', background: T.surface2, border: `1px solid ${T.border}`,
+                  borderRadius: 9, padding: '10px 13px', outline: 'none', boxSizing: 'border-box',
+                  fontFamily: T.fB, fontSize: 13, color: T.text,
+                }}
+              />
+              <div style={{ fontFamily: T.fB, fontSize: 11.5, color: T.text3, marginTop: 5 }}>
+                Supports LeetCode, Codeforces, AtCoder, HackerRank, GeeksForGeeks
+              </div>
+            </Field>
+
+            {urlError && (
+              <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 9, background: 'rgba(242,101,79,0.10)', border: '1px solid rgba(242,101,79,0.3)', fontFamily: T.fB, fontSize: 12.5, color: T.loss }}>
+                {urlError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 4 }}>
+              <Btn kind="ghost" onClick={onClose}>Cancel</Btn>
+              <Btn kind="accentGhost" icon="search" disabled={previewing} onClick={handleLookup}>
+                {previewing ? 'Looking up…' : 'Look up'}
+              </Btn>
+            </div>
+          </>
+        )}
+
+        {step === 'confirm' && preview && !success && (
+          <>
+            {/* Read-only metadata */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+              padding: '10px 13px', background: T.surface2, border: `1px solid ${T.border}`,
+              borderRadius: 9, marginBottom: 16,
+            }}>
+              <PlatformBadge p={preview.platform as Platform} />
+              <span className="mono" style={{ fontSize: 12, color: T.text2 }}>{preview.external_id}</span>
+              <a
+                href={preview.external_link}
+                target="_blank"
+                rel="noreferrer"
+                style={{ marginLeft: 'auto', fontFamily: T.fD, fontSize: 12, color: T.accentText, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                Open <Icon name="external" size={12} />
+              </a>
+            </div>
+
+            {/* Platform color indicator */}
+            <div style={{
+              height: 3, borderRadius: 2, marginBottom: 16,
+              background: PLAT[preview.platform as Platform]?.c ?? T.border,
+              opacity: 0.6,
+            }} />
+
+            {/* Editable name */}
+            <Field label="Problem name">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+                style={{
+                  width: '100%', background: T.surface2, border: `1px solid ${T.border}`,
+                  borderRadius: 9, padding: '10px 13px', outline: 'none', boxSizing: 'border-box',
+                  fontFamily: T.fB, fontSize: 13.5, color: T.text,
+                }}
+              />
+            </Field>
+
+            {/* Editable tags */}
+            <Field label="Tags (comma-separated)">
+              <input
+                value={tagsStr}
+                onChange={(e) => setTagsStr(e.target.value)}
+                placeholder="Array, Hash Table, Two Pointers"
+                style={{
+                  width: '100%', background: T.surface2, border: `1px solid ${T.border}`,
+                  borderRadius: 9, padding: '10px 13px', outline: 'none', boxSizing: 'border-box',
+                  fontFamily: T.fB, fontSize: 13, color: T.text,
+                }}
+              />
+              {tagsStr && (
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8 }}>
+                  {tagsStr.split(',').map((t) => t.trim()).filter(Boolean).map((t) => (
+                    <span key={t} style={{
+                      fontFamily: T.fM, fontSize: 11, color: T.text2,
+                      background: T.surface3, border: `1px solid ${T.border}`,
+                      borderRadius: 5, padding: '2px 8px',
+                    }}>{t}</span>
+                  ))}
+                </div>
+              )}
+            </Field>
+
+            {submitError && (
+              <div style={{ marginBottom: 14, padding: '10px 13px', borderRadius: 9, background: 'rgba(242,101,79,0.10)', border: '1px solid rgba(242,101,79,0.3)', fontFamily: T.fB, fontSize: 12.5, color: T.loss }}>
+                {submitError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <Btn kind="ghost" onClick={() => { setStep('url'); setPreview(null); setSubmitError(''); }}>Back</Btn>
+              <Btn kind="primary" iconR="check" disabled={adding} onClick={handleAdd}>
+                {adding ? 'Adding…' : 'Add to library'}
+              </Btn>
+            </div>
+          </>
+        )}
+
+        {success && (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <div style={{ fontFamily: T.fD, fontSize: 15, fontWeight: 600, color: T.gain, marginBottom: 6 }}>
+              Problem added!
+            </div>
+            <div style={{ fontFamily: T.fB, fontSize: 13, color: T.text2 }}>
+              {name} is now in the library.
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
