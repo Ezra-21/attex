@@ -182,3 +182,227 @@ function ProblemRow({
         }}
       >
         {/* Solved status */}
+        <div style={{ width: 18, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          {solved
+            ? <span style={{ width: 18, height: 18, borderRadius: 5, background: 'rgba(69,212,131,0.15)', display: 'grid', placeItems: 'center' }}>
+                <Icon name="check" size={13} style={{ color: T.gain }} />
+              </span>
+            : <span style={{ width: 16, height: 16, borderRadius: 5, border: `1.5px solid ${T.border}` }} />}
+        </div>
+
+        <PlatformBadge p={problem.platform} size="sm" />
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: T.fD, fontSize: isMobile ? 13 : 14, fontWeight: 500, color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {problem.name}
+          </div>
+          <div className="mono" style={{ fontSize: 10.5, color: T.text3, marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {problem.external_id}
+          </div>
+        </div>
+
+        {!isMobile && (
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap' }}>
+            {problem.tags.slice(0, 3).map((t) => <Tag key={t}>{t}</Tag>)}
+          </div>
+        )}
+
+        {/* Per-problem actions — stop propagation so row toggle isn't triggered */}
+        <div
+          style={{ display: 'flex', gap: isMobile ? 4 : 5, flexShrink: 0 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Btn kind="accentGhost" size="sm" icon="plus" onClick={() => onSubmit(problem)}>
+            {isMobile ? '' : 'Submit'}
+          </Btn>
+          <Btn kind="solid" size="sm" icon="book" onClick={() => navigate(`/problems/${problem.id}/editorials`)}>
+            {isMobile ? '' : 'Editorial'}
+          </Btn>
+        </div>
+
+        <Icon
+          name="chevronD"
+          size={16}
+          style={{ color: T.text3, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s', flexShrink: 0 }}
+        />
+      </div>
+      {open && <ProblemAccordion problem={problem} myUserId={myUserId} />}
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────
+const PLATFORMS: Array<Platform | 'ALL'> = ['ALL', 'LEETCODE', 'CODEFORCES', 'ATCODER', 'HACKERRANK', 'GFG', 'OTHER'];
+const PLAT_LABELS: Record<string, string> = {
+  ALL: 'All', LEETCODE: 'LeetCode', CODEFORCES: 'Codeforces', ATCODER: 'AtCoder',
+  HACKERRANK: 'HackerRank', GFG: 'GeeksForGeeks', OTHER: 'Other',
+};
+
+export default function ProblemsPage() {
+  const { user } = useAuth();
+  const appUser = useAppUser();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [platform, setPlatform] = useState<Platform | 'ALL'>('ALL');
+  const [search, setSearch]     = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [showUnsolvedOnly, setShowUnsolvedOnly] = useState(false);
+  const [openId, setOpenId]     = useState<string | null>(null);
+  const [page, setPage]         = useState(0);
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [logPrefill, setLogPrefill]     = useState<{ url: string; name: string; platform: import('../../lib/tokens').Platform } | undefined>(undefined);
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  const canAddProblem = ['SQUAD_LEAD', 'ADMIN', 'SUPER_ADMIN'].includes(appUser.role);
+
+  function openSubmitFor(p: Problem) {
+    setLogPrefill({ url: p.external_link, name: p.name, platform: p.platform });
+    setShowLogModal(true);
+  }
+
+  const PAGE_SIZE = 20;
+  const w = useWindowWidth();
+  const isMobile = w < BREAKPOINTS.tablet;
+
+  const { data, isLoading } = useProblems({ platform, search: debouncedSearch, page, pageSize: PAGE_SIZE });
+  const { data: solvedIds = new Set<string>() } = useMySubmittedProblemIds(user?.id);
+
+  const problems = data?.problems ?? [];
+  const total    = data?.total ?? 0;
+
+  // Debounce search
+  const handleSearch = useCallback((val: string) => {
+    setSearch(val);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setDebouncedSearch(val);
+      setPage(0);
+    }, 300);
+  }, []);
+
+  const displayed = showUnsolvedOnly ? problems.filter((p) => !solvedIds.has(p.id)) : problems;
+
+  function toggleOpen(id: string) {
+    setOpenId((prev) => (prev === id ? null : id));
+  }
+
+  if (appUser.isLoading) return null;
+
+  return (
+    <>
+      <AppShell
+        title="Problems"
+        crumbs="Hub / Problems"
+        userId={appUser.id}
+        role={appUser.role}
+        userName={appUser.fullName}
+        squadName={appUser.squadName}
+        headerRight={
+          <div style={{ display: 'flex', gap: 8 }}>
+            {canAddProblem && (
+              <Btn kind="ghost" size="sm" icon="plus" onClick={() => setShowAddModal(true)}>
+                {isMobile ? 'Add' : 'Add problem'}
+              </Btn>
+            )}
+            <Btn kind="accentGhost" size="sm" icon="plus" onClick={() => { setLogPrefill(undefined); setShowLogModal(true); }}>
+              {isMobile ? 'Log' : 'Log a solve'}
+            </Btn>
+          </div>
+        }
+      >
+        {/* Filters */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, flexWrap: 'wrap' }}>
+          {/* Search */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 9,
+            background: T.surface, border: `1px solid ${T.border}`,
+            borderRadius: 9, padding: '9px 13px', width: 280,
+          }}>
+            <Icon name="search" size={16} style={{ color: T.text3 }} />
+            <input
+              value={search}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder="Search problems or tags…"
+              style={{ fontFamily: T.fB, fontSize: 13, color: T.text, background: 'transparent', border: 'none', outline: 'none', flex: 1 }}
+            />
+          </div>
+
+          <span style={{ width: 1, height: 24, background: T.border }} />
+
+          {/* Platform pills */}
+          {PLATFORMS.map((p) => (
+            <FilterPill key={p} active={platform === p} onClick={() => { setPlatform(p); setPage(0); }}>
+              {PLAT_LABELS[p]}
+            </FilterPill>
+          ))}
+
+          <span style={{ flex: 1 }} />
+
+          <FilterPill active={showUnsolvedOnly} icon="check" onClick={() => setShowUnsolvedOnly((v) => !v)}>
+            Unsolved
+          </FilterPill>
+        </div>
+
+        {/* Table */}
+        <Card pad={0} style={{ overflow: 'hidden' }}>
+          {/* Column headers */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 14,
+            padding: '10px 18px', background: T.surface3,
+          }}>
+            <span style={{ width: 20 }} />
+            <span style={{ width: 52 }} />
+            <span style={{ flex: 1, fontFamily: T.fM, fontSize: 10.5, letterSpacing: 1.5, textTransform: 'uppercase', color: T.text3 }}>
+              Problem
+            </span>
+            {!isMobile && (
+              <span style={{ fontFamily: T.fM, fontSize: 10.5, letterSpacing: 1.5, textTransform: 'uppercase', color: T.text3 }}>
+                Tags
+              </span>
+            )}
+            <span style={{ width: 16 }} />
+          </div>
+
+          {isLoading && [1,2,3,4,5,6].map((i) => <TableRowSk key={i} />)}
+
+          {!isLoading && displayed.length === 0 && (
+            <div style={{ padding: '32px', textAlign: 'center', fontFamily: T.fB, fontSize: 14, color: T.text3 }}>
+              No problems found.
+            </div>
+          )}
+
+          {displayed.map((pr) => (
+            <ProblemRow
+              key={pr.id}
+              problem={pr}
+              open={openId === pr.id}
+              onToggle={() => toggleOpen(pr.id)}
+              solved={solvedIds.has(pr.id)}
+              myUserId={appUser.id}
+              onSubmit={openSubmitFor}
+            />
+          ))}
+        </Card>
+
+        {/* Pagination */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, fontFamily: T.fM, fontSize: 11.5, color: T.text3 }}>
+          <span>
+            Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total} problems
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Btn kind="ghost" size="sm" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>Prev</Btn>
+            <Btn kind="solid" size="sm" disabled={(page + 1) * PAGE_SIZE >= total} onClick={() => setPage((p) => p + 1)}>Next</Btn>
+          </div>
+        </div>
+      </AppShell>
+
+      {showLogModal && (
+        <LogSolveModal
+          onClose={() => { setShowLogModal(false); setLogPrefill(undefined); }}
+          prefill={logPrefill}
+        />
+      )}
+      {showAddModal && <AddProblemModal onClose={() => setShowAddModal(false)} />}
+    </>
+  );
+}
