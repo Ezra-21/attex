@@ -119,3 +119,151 @@ export interface FullSubmission {
 }
 
 export function useSubmission(id: string | undefined) {
+  return useQuery({
+    queryKey: ['submission', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from('submissions')
+        .select(`
+          id, language, code, source, submitted_at,
+          problem:problems(id, name, platform, external_id, external_link, tags),
+          user:users(id, full_name, role, squad:squads(name))
+        `)
+        .eq('id', id)
+        .single();
+      if (error) throw error;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const raw = data as any;
+      const u = raw?.user ?? null;
+      const squad = u?.squad ?? null;
+      return {
+        id: raw.id, language: raw.language, code: raw.code,
+        source: raw.source, submitted_at: raw.submitted_at,
+        problem: Array.isArray(raw.problem) ? raw.problem[0] ?? null : raw.problem,
+        user: u ? { id: u.id, full_name: u.full_name, role: u.role, squad_name: (Array.isArray(squad) ? squad[0] : squad)?.name ?? null } : null,
+      } as FullSubmission;
+    },
+    enabled: !!id,
+  });
+}
+
+// ── Editorials ────────────────────────────────────────────────────────────
+export interface Editorial {
+  id: string;
+  content_md: string;
+  created_at: string;
+  author: { id: string; full_name: string; role: string } | null;
+  score: number;
+  user_vote: number | null;
+}
+
+export function useEditorials(problemId: string | undefined) {
+  return useQuery({
+    queryKey: ['editorials', problemId],
+    queryFn: async () => {
+      if (!problemId) return [];
+      // Use the backend API — bypasses Supabase RLS, correctly joins users + votes
+      const res = await api.get<Editorial[]>(`/api/editorials?problem_id=${problemId}`);
+      return res.data ?? [];
+    },
+    enabled: !!problemId,
+  });
+}
+
+export function useCreateEditorial(problemId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (content_md: string) =>
+      api.post('/api/editorials', { problem_id: problemId, content_md }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['editorials', problemId] }),
+  });
+}
+
+export function useUpdateEditorial() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ editorialId, content_md }: { editorialId: string; content_md: string }) =>
+      api.put(`/api/editorials/${editorialId}`, { content_md }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['editorials'] }),
+  });
+}
+
+export function useVoteEditorial() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ editorialId, value }: { editorialId: string; value: 1 | -1 }) =>
+      api.post(`/api/editorials/${editorialId}/vote`, { value }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['editorials'] }),
+  });
+}
+
+// ── Problem detail (for breadcrumbs / editorial page) ────────────────────
+export function useProblem(id: string | undefined) {
+  return useQuery({
+    queryKey: ['problem', id],
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from('problems')
+        .select('id, name, platform, external_id, external_link, tags')
+        .eq('id', id)
+        .single();
+      if (error) throw error;
+      return data as Problem;
+    },
+    enabled: !!id,
+  });
+}
+
+// ── Log a solve (manual submission — problem must already exist) ─────────
+export function useLogSolve() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      problem_url: string;
+      language: string;
+      code: string;
+    }) => api.post('/api/submissions', { ...payload, source: 'manual' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['problems'] });
+      qc.invalidateQueries({ queryKey: ['my-solved'] });
+      qc.invalidateQueries({ queryKey: ['submissions', 'recent'] });
+    },
+  });
+}
+
+// ── Problem preview from URL (squad lead+) ────────────────────────────────
+export interface ProblemPreview {
+  platform: Platform;
+  external_id: string;
+  external_link: string;
+  name: string;
+  tags: string[];
+}
+
+export function usePreviewProblem() {
+  return useMutation({
+    mutationFn: (url: string) =>
+      api.get<ProblemPreview>(`/api/problems/preview?url=${encodeURIComponent(url)}`),
+  });
+}
+
+// ── Add a problem to the library (squad lead+) ────────────────────────────
+export function useAddProblem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      platform: Platform;
+      external_id: string;
+      external_link: string;
+      name: string;
+      tags: string[];
+    }) => api.post('/api/problems', payload),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['problems'] }),
+  });
+}
+
+// ── Language → file extension ────────────────────────────────────────────
+// Implemented in the pure, unit-tested lib; re-exported here for consumers.
+export { langToExt } from '../../lib/derive';
