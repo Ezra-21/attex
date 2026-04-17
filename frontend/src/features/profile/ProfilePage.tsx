@@ -166,3 +166,209 @@ function EditModal({ profile, onClose }: { profile: UserProfile; onClose: () => 
           <Btn kind="primary" icon="check" disabled={isPending} onClick={handleSave}>{isPending ? 'Saving…' : 'Save changes'}</Btn>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────
+export default function ProfilePage() {
+  const { userId: paramUserId } = useParams<{ userId: string }>();
+  const appUser = useAppUser();
+  const [showEdit, setShowEdit] = useState(false);
+  const w = useWindowWidth();
+  const isMobile = w < BREAKPOINTS.tablet;
+
+  const isOwn = paramUserId === appUser.id;
+  const targetId = isOwn ? appUser.id : paramUserId;
+
+  const { data: profile, isLoading } = useProfile(targetId);
+  const { data: roleHistory = [] }   = useRoleHistory(targetId);
+  const { data: submissions = [] }   = useUserSubmissions(targetId);
+
+  if (appUser.isLoading || isLoading) {
+    return (
+      <AppShell title="Profile" crumbs="Hub / Profile" userId="" role="COMMUNITY" userName="" squadName={null} scroll>
+        <div style={{ maxWidth: 1080, margin: '0 auto', display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0,1fr)' : '320px minmax(0,1fr)', gap: 22 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
+            <ProfileCardSk />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+              <Sk h={52} radius={10} /><Sk h={52} radius={10} /><Sk h={52} radius={10} />
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+            <div style={{ display: 'flex', gap: 14 }}><StatCardSk /><StatCardSk /></div>
+            <div style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 14, padding: 20 }}>
+              <Sk w={200} h={14} style={{ marginBottom: 16 }} />
+              <Sk w="100%" h={80} radius={8} />
+            </div>
+            <div style={{ background: T.surface2, border: `1px solid ${T.border}`, borderRadius: 14, overflow: 'hidden' }}>
+              {[1,2,3,4].map((i) => <TableRowSk key={i} cols={3} />)}
+            </div>
+          </div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!profile) return (
+    <AppShell title="Profile" userId={appUser.id} role={appUser.role} userName={appUser.fullName} squadName={appUser.squadName}>
+      <div style={{ textAlign: 'center', padding: 48, fontFamily: T.fB, fontSize: 15, color: T.text3 }}>User not found.</div>
+    </AppShell>
+  );
+
+  const joinYear = new Date(profile.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const streakActive = isStreakActive(profile.last_submission_date);
+
+  return (
+    <>
+      <FlameDef />
+      <AppShell
+        title="Profile"
+        crumbs={`Hub / Profile${!isOwn ? ` / ${profile.full_name}` : ''}`}
+        userId={appUser.id}
+        role={appUser.role}
+        userName={appUser.fullName}
+        squadName={appUser.squadName}
+        scroll
+        headerRight={isOwn
+          ? <Btn kind="ghost" size="sm" icon="settings" onClick={() => setShowEdit(true)}>Edit profile</Btn>
+          : undefined
+        }
+      >
+        <div style={{ maxWidth: 1080, margin: '0 auto', display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0,1fr)' : '320px minmax(0,1fr)', gap: 22 }}>
+
+          {/* Left — identity */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0 }}>
+            <Card style={{ textAlign: 'center' }} pad={isMobile ? 20 : 24}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+                <Avatar name={profile.full_name} size={isMobile ? 72 : 84} ring={isOwn} />
+              </div>
+              <h2 style={{ margin: 0, fontFamily: T.fD, fontSize: isMobile ? 19 : 21, fontWeight: 600, color: T.text, letterSpacing: -0.4 }}>
+                {profile.full_name}
+              </h2>
+              <div style={{ fontFamily: T.fM, fontSize: 12, color: T.text3, marginTop: 4 }}>
+                joined {joinYear}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+                <RoleBadge role={profile.role as Role} />
+                {profile.squad_name && <SquadBadge squad={profile.squad_name} lead={profile.role === 'SQUAD_LEAD'} />}
+              </div>
+              {profile.bio && (
+                <p style={{ fontFamily: T.fB, fontSize: 13, color: T.text2, lineHeight: 1.6, margin: '18px 0 0' }}>
+                  {profile.bio}
+                </p>
+              )}
+              <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                {profile.telegram_handle && (
+                  <a href={`https://t.me/${profile.telegram_handle}`} target="_blank" rel="noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
+                    <Btn kind="solid" size="sm" full icon="announce">Telegram</Btn>
+                  </a>
+                )}
+                {profile.linkedin_url && (
+                  <a href={profile.linkedin_url} target="_blank" rel="noreferrer" style={{ flex: 1, textDecoration: 'none' }}>
+                    <Btn kind="solid" size="sm" full icon="external">LinkedIn</Btn>
+                  </a>
+                )}
+              </div>
+            </Card>
+
+            {/* Platform handles */}
+            <div>
+              <Kicker style={{ marginBottom: 11 }}>Platform handles</Kicker>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {profile.codeforces_handle && <HandleChip p="CODEFORCES" handle={profile.codeforces_handle} />}
+                {profile.leetcode_handle   && <HandleChip p="LEETCODE"   handle={profile.leetcode_handle} />}
+                {profile.atcoder_handle    && <HandleChip p="ATCODER"    handle={profile.atcoder_handle} />}
+                {!profile.codeforces_handle && !profile.leetcode_handle && !profile.atcoder_handle && (
+                  <div style={{ fontFamily: T.fB, fontSize: 13, color: T.text3, padding: '10px 0' }}>No handles set yet.</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right — stats + activity + submissions + history */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+            {/* Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,minmax(0,1fr))', gap: 14 }}>
+              <StatCard label="Problems" value={profile.problem_count} sub="unique solves" accent={T.accent} icon="check" />
+              <StatCard
+                label="Streak"
+                value={profile.daily_streak}
+                sub="days"
+                accent={streakActive ? T.streak : T.text3}
+                iconNode={<FlameIcon active={streakActive} size={18} />}
+              />
+            </div>
+
+            {/* Activity heatmap */}
+            <Card>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <h2 style={{ margin: 0, fontFamily: T.fD, fontSize: 15.5, fontWeight: 600, color: T.text, letterSpacing: -0.2 }}>
+                  Activity · last 16 weeks
+                </h2>
+                <Streak days={profile.daily_streak} active={streakActive} size="sm" />
+              </div>
+              <HeatStrip userId={profile.id} />
+            </Card>
+
+            {/* Submissions + role history */}
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'minmax(0,1fr)' : 'minmax(0,1.4fr) minmax(0,1fr)', gap: 20 }}>
+              {/* Recent submissions */}
+              <div style={{ minWidth: 0 }}>
+                <h2 style={{ margin: '0 0 14px', fontFamily: T.fD, fontSize: 15.5, fontWeight: 600, color: T.text, letterSpacing: -0.2 }}>Recent submissions</h2>
+                <Card pad={0} style={{ overflow: 'hidden' }}>
+                  {submissions.length === 0 ? (
+                    <div style={{ padding: '20px', textAlign: 'center', fontFamily: T.fB, fontSize: 13, color: T.text3 }}>No submissions yet.</div>
+                  ) : (
+                    submissions.map((s, i) => (
+                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '11px 14px', borderTop: i ? `1px solid ${T.borderSoft}` : 'none', minWidth: 0 }}>
+                        <PlatformBadge p={(s.problem?.platform ?? 'OTHER') as Platform} size="sm" />
+                        <span style={{ fontFamily: T.fD, fontSize: 13, fontWeight: 500, color: T.text, flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {s.problem?.name ?? '—'}
+                        </span>
+                        <span className="mono" style={{ fontSize: 11, color: T.text2, flexShrink: 0 }}>{s.language}</span>
+                        {!isMobile && <span style={{ fontFamily: T.fM, fontSize: 10.5, color: T.text3, width: 72, textAlign: 'right', flexShrink: 0 }}>{relTime(s.submitted_at)}</span>}
+                      </div>
+                    ))
+                  )}
+                </Card>
+              </div>
+
+              {/* Role history */}
+              <div style={{ minWidth: 0 }}>
+                <h2 style={{ margin: '0 0 14px', fontFamily: T.fD, fontSize: 15.5, fontWeight: 600, color: T.text, letterSpacing: -0.2 }}>Role history</h2>
+                <Card>
+                  {roleHistory.length === 0 ? (
+                    <div style={{ fontFamily: T.fB, fontSize: 13, color: T.text3 }}>No history yet.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {roleHistory.map((h, i) => (
+                        <div key={h.id} style={{ display: 'flex', gap: 12, paddingBottom: i < roleHistory.length - 1 ? 16 : 0 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ width: 10, height: 10, borderRadius: 5, background: i === 0 ? T.accent : T.border, marginTop: 4 }} />
+                            {i < roleHistory.length - 1 && <span style={{ flex: 1, width: 2, background: T.border, marginTop: 4 }} />}
+                          </div>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                              <RoleBadge role={h.role as Role} size="sm" />
+                              {h.squad_name && <span style={{ fontFamily: T.fM, fontSize: 10.5, color: T.text3 }}>· {h.squad_name}</span>}
+                            </div>
+                            <div style={{ fontFamily: T.fM, fontSize: 10.5, color: T.text3, marginTop: 5 }}>
+                              {formatMonth(h.assigned_at)}{i === 0 ? ' · current' : ''}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AppShell>
+
+      {showEdit && profile && <EditModal profile={profile} onClose={() => setShowEdit(false)} />}
+    </>
+  );
+}
