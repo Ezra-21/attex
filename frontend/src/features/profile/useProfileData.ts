@@ -60,3 +60,79 @@ export function useRoleHistory(userId: string | undefined) {
         .select('id, role, assigned_at, squad:squads(name)')
         .eq('user_id', userId)
         .order('assigned_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map((r: Record<string, unknown>) => {
+        const sq = r.squad as { name: string } | null;
+        return { id: r.id, role: r.role, squad_name: sq?.name ?? null, assigned_at: r.assigned_at } as RoleHistoryEntry;
+      });
+    },
+    enabled: !!userId,
+  });
+}
+
+// ── Recent submissions for a user ────────────────────────────────────────
+export interface ProfileSubmission {
+  id: string;
+  language: string;
+  submitted_at: string;
+  problem: { name: string; platform: string } | null;
+}
+
+export function useUserSubmissions(userId: string | undefined, limit = 10) {
+  return useQuery({
+    queryKey: ['user-submissions', userId, limit],
+    queryFn: async () => {
+      if (!userId) return [];
+      const { data, error } = await supabase
+        .from('submissions')
+        .select('id, language, submitted_at, problem:problems(name, platform)')
+        .eq('user_id', userId)
+        .order('submitted_at', { ascending: false })
+        .limit(limit);
+      if (error) throw error;
+      return (data ?? []).map((s: Record<string, unknown>) => ({
+        id: s.id,
+        language: s.language,
+        submitted_at: s.submitted_at,
+        problem: s.problem as { name: string; platform: string } | null,
+      })) as ProfileSubmission[];
+    },
+    enabled: !!userId,
+  });
+}
+
+// ── Activity heatmap (last 16 weeks = 112 days) ─────────────────────────
+export function useActivityHeatmap(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['activity-heatmap', userId],
+    queryFn: async () => {
+      if (!userId) return new Map<string, number>();
+      const since = new Date(Date.now() - 112 * 86_400_000).toISOString().split('T')[0];
+      const { data, error } = await supabase
+        .from('submissions')
+        .select('submitted_at')
+        .eq('user_id', userId)
+        .gte('submitted_at', since);
+      if (error) throw error;
+      // Convert UTC timestamps → EAT calendar-day counts (pure, unit-tested).
+      return bucketSubmissionsByDay((data ?? []).map((s) => s.submitted_at as string));
+    },
+    enabled: !!userId,
+    staleTime: 300_000,
+  });
+}
+
+// ── Update own profile ────────────────────────────────────────────────────
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: Partial<{
+      bio: string; telegram_handle: string; linkedin_url: string;
+      leetcode_handle: string; codeforces_handle: string; atcoder_handle: string;
+    }>) => api.put('/api/users/me', payload),
+    onSuccess: (_data, _vars, _ctx) => {
+      qc.invalidateQueries({ queryKey: ['profile'] });
+      qc.invalidateQueries({ queryKey: ['profile-full'] });
+    },
+  });
+}
