@@ -1,0 +1,92 @@
+/* ── Google Fonts ─────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500;600;700&family=Spectral:ital,wght@1,400;1,500&display=swap');
+
+/* ── Design tokens ────────────────────────────────────────────────────── */
+:root {
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-body:    'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, monospace;
+  --font-serif:   'Spectral', Georgia, serif;
+
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Reset ────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: #0a0c10;
+  color: #e9ebf0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+#root {
+  width: 100%;
+  min-height: 100svh;
+}
+
+h1, h2, h3, h4, h5, h6 { margin: 0; }
+p { margin: 0; }
+a { text-decoration: none; color: inherit; }
+button { cursor: pointer; }
+
+/* ── Utility classes (matching design-canvas conventions) ─────────────── */
+.disp  { font-family: var(--font-display); }
+.mono  { font-family: var(--font-mono); }
+.num   { font-variant-numeric: tabular-nums; }
+
+/* ── Animations ───────────────────────────────────────────────────────── */
+@keyframes fa-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(243, 181, 60, 0.5); }
+  70%  { box-shadow: 0 0 0 8px rgba(243, 181, 60, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(243, 181, 60, 0); }
+}
+
+@keyframes fa-flame {
+  0%, 100% { transform: scaleY(1) rotate(-2deg); }
+  50%       { transform: scaleY(1.08) rotate(2deg); }
+}
+
+@keyframes fa-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* blinking cursor */
+.fa-caret::after {
+  content: '|';
+  animation: fa-blink 1s step-end infinite;
+  margin-left: 2px;
+  color: #25d6c1;
+}
+@keyframes fa-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ── Skeleton shimmer ─────────────────────────────────────────────────── */
+@keyframes fa-shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #161a21 25%, #1d222b 50%, #161a21 75%);
+  background-size: 600px 100%;
+  animation: fa-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* ── Sidebar width CSS var (updated by JS via data-attr or inline) ──────── */
+:root { --sidebar-w: 236px; }
+
+/* ── Scrollbar ────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #272d39; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #626a78; }
