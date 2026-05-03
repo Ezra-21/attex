@@ -58,3 +58,79 @@ async function postSubmission(portalUrl, apiKey, payload) {
       },
       body: JSON.stringify(payload),
     });
+
+    if (resp.ok) return { ok: true };
+
+    const body = await resp.text();
+    return { ok: false, error: `${resp.status}: ${body}` };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+// ── Retry queue ───────────────────────────────────────────────────────────────
+
+async function enqueue(payload) {
+  const { retry_queue: queue = [] } = await chrome.storage.local.get(RETRY_QUEUE_KEY);
+  queue.push({ payload, retries: 0, queuedAt: Date.now() });
+  await chrome.storage.local.set({ [RETRY_QUEUE_KEY]: queue });
+}
+
+async function flushRetryQueue() {
+  const { retry_queue: queue = [] } = await chrome.storage.local.get(RETRY_QUEUE_KEY);
+  if (queue.length === 0) return;
+
+  const { apiKey, portalUrl } = await getSettings();
+  if (!apiKey || !portalUrl) return;
+
+  const remaining = [];
+  for (const item of queue) {
+    const result = await postSubmission(portalUrl, apiKey, item.payload);
+    if (result.ok) {
+      showNotification(
+        'Queued submission saved!',
+        `${item.payload.problem_name} was synced after retry.`
+      );
+    } else {
+      item.retries++;
+      if (item.retries < MAX_RETRIES) {
+        remaining.push(item);
+      }
+      // Drop after MAX_RETRIES to avoid stale queue growth
+    }
+  }
+
+  await chrome.storage.local.set({ [RETRY_QUEUE_KEY]: remaining });
+}
+
+// ── Connectivity test (called from popup) ─────────────────────────────────────
+
+async function testConnection(portalUrl, apiKey) {
+  try {
+    const resp = await fetch(`${portalUrl}/api/healthz`, {
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+    });
+    return { ok: resp.ok, status: resp.status };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+async function getSettings() {
+  const data = await chrome.storage.sync.get(['apiKey', 'portalUrl']);
+  return {
+    apiKey: data.apiKey || '',
+    portalUrl: (data.portalUrl || 'https://focus-astu-backend.purplebeach-cef0511d.southafricanorth.azurecontainerapps.io').replace(/\/$/, ''),
+  };
+}
+
+function showNotification(title, message) {
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: '../icons/icon48.png',
+    title,
+    message,
+  });
+}
