@@ -72,3 +72,93 @@
   // ── Row data extraction ────────────────────────────────────────────────────
 
   function extractSubmissionId(row) {
+    const firstCell = row.querySelector('td:first-child');
+    if (!firstCell) return null;
+    const link = firstCell.querySelector('a');
+    if (link) {
+      const m = link.href.match(/\/submission\/(\d+)/) || link.href.match(/\/(\d+)$/);
+      if (m) return m[1];
+    }
+    const text = firstCell.textContent.trim();
+    return /^\d+$/.test(text) ? text : null;
+  }
+
+  function extractRowInfo(row) {
+    const problemLink = row.querySelector('a[href*="/problem/"], a[href*="/problems/"]');
+    if (!problemLink) return null;
+
+    const href = problemLink.href;
+    const problemId = extractProblemId(href);
+    if (!problemId) return null;
+
+    const problemName = problemLink.textContent.trim() || problemId;
+
+    const cells = [...row.querySelectorAll('td')];
+    const langCell = cells.find((td) => {
+      const text = td.textContent.trim();
+      return (
+        /C\+\+|Java|Python|Go|Kotlin|Rust|Pascal|Delphi|Haskell|Ruby|Scala/i.test(text) &&
+        text.length < 40
+      );
+    });
+    const language = langCell ? langCell.textContent.trim() : 'Unknown';
+
+    const problemLinkHref = buildProblemLink(href, problemId);
+    return { problemId, problemName, problemLink: problemLinkHref, language };
+  }
+
+  function extractProblemId(href) {
+    let m = href.match(/\/contest\/(\d+)\/problem\/([A-Z]\d*)/i);
+    if (m) return `${m[1]}${m[2].toUpperCase()}`;
+
+    m = href.match(/\/problemset\/problem\/(\d+)\/([A-Z]\d*)/i);
+    if (m) return `${m[1]}${m[2].toUpperCase()}`;
+
+    return null;
+  }
+
+  function buildProblemLink(href, problemId) {
+    const m = href.match(/\/contest\/(\d+)\/problem\/([A-Z]\d*)/i);
+    if (m) return `https://codeforces.com/contest/${m[1]}/problem/${m[2].toUpperCase()}`;
+
+    const ps = href.match(/\/problemset\/problem\/(\d+)\/([A-Z]\d*)/i);
+    if (ps) return `https://codeforces.com/problemset/problem/${ps[1]}/${ps[2].toUpperCase()}`;
+
+    return href;
+  }
+
+  // ── Source code fetching ───────────────────────────────────────────────────
+
+  async function fetchSourceCode(submissionId, info) {
+    const sourceLink = document.querySelector(`a[href*="/submission/${submissionId}"]`);
+    const fetchUrl = sourceLink ? sourceLink.href : buildSourceUrl(submissionId);
+
+    if (!fetchUrl) return '';
+
+    try {
+      const resp = await fetch(fetchUrl, { credentials: 'include' });
+      if (!resp.ok) return '';
+      const html = await resp.text();
+      return parseSourceFromHtml(html);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function buildSourceUrl(submissionId) {
+    const m = location.href.match(/\/contest\/(\d+)/);
+    if (m) return `https://codeforces.com/contest/${m[1]}/submission/${submissionId}`;
+    return null;
+  }
+
+  function parseSourceFromHtml(html) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    const pre = doc.getElementById('program-source-text');
+    if (pre) return pre.textContent;
+
+    const fallback = doc.querySelector('.source-code pre, .program-source pre');
+    return fallback ? fallback.textContent : '';
+  }
+})();
