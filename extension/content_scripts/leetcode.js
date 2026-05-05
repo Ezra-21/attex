@@ -78,3 +78,102 @@
     try {
       const text = await response.text();
       const data = JSON.parse(text);
+
+      // submissionDetails query — fired when LeetCode polls for the result
+      const details =
+        data?.data?.submissionDetails ||
+        data?.data?.submission;
+
+      if (details) {
+        dispatchAccepted({
+          status_msg: details.statusDisplay || details.status_display || '',
+          statusDisplay: details.statusDisplay || details.status_display || '',
+          lang: details.lang || details.langName || '',
+          pretty_lang: details.langName || '',
+          code: details.code || details.typedCode || '',
+        });
+        return;
+      }
+
+      // submissionResult / checkSubmission — alternative operation names LeetCode uses
+      const result =
+        data?.data?.submissionResult ||
+        data?.data?.checkSubmission;
+
+      if (result) {
+        dispatchAccepted({
+          status_msg: result.statusDisplay || result.status_msg || '',
+          statusDisplay: result.statusDisplay || '',
+          lang: result.lang || '',
+          code: result.code || '',
+        });
+      }
+    } catch (_) {}
+  }
+
+  function dispatchAccepted(data) {
+    // Accept both REST ("Accepted") and possible GraphQL ("statusDisplay")
+    const isAccepted =
+      data.status_msg === 'Accepted' ||
+      data.statusDisplay === 'Accepted';
+
+    if (!isAccepted) return;
+
+    const slug = extractSlug();
+    if (!slug) return;
+
+    const submission = {
+      platform: 'LEETCODE',
+      external_id: slug,
+      problem_name: extractProblemName(slug),
+      external_link: `https://leetcode.com/problems/${slug}/`,
+      language: normalizeLang(data.lang || data.pretty_lang || pendingSubmit.lang),
+      code: data.code || pendingSubmit.code,
+      source: 'extension',
+    };
+
+    // MAIN world has no chrome.* API access — relay via DOM event to the isolated-world script.
+    window.dispatchEvent(new CustomEvent('__focusASTU_submission', { detail: submission }));
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  function extractSlug() {
+    // URL: https://leetcode.com/problems/<slug>/...
+    const m = location.pathname.match(/\/problems\/([^/]+)/);
+    return m ? m[1] : null;
+  }
+
+  function extractProblemName(slug) {
+    const title = document.title;
+    if (title && title.toLowerCase().includes('leetcode')) {
+      return title.replace(/\s*[-|]\s*LeetCode.*$/i, '').trim();
+    }
+    // Fallback: "two-sum" → "Two Sum"
+    return slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  const LANG_MAP = {
+    cpp: 'C++',
+    c: 'C',
+    java: 'Java',
+    python: 'Python',
+    python3: 'Python3',
+    javascript: 'JavaScript',
+    typescript: 'TypeScript',
+    csharp: 'C#',
+    go: 'Go',
+    golang: 'Go',
+    ruby: 'Ruby',
+    swift: 'Swift',
+    kotlin: 'Kotlin',
+    rust: 'Rust',
+    scala: 'Scala',
+    php: 'PHP',
+  };
+
+  function normalizeLang(lang) {
+    if (!lang) return 'Unknown';
+    return LANG_MAP[lang.toLowerCase()] || lang;
+  }
+})();
