@@ -56,3 +56,75 @@ btnSave.addEventListener('click', async () => {
   settingsLink.href = `${portalUrl}/settings/extension`;
 
   // Test the connection after save
+  const { apiKey: savedKey } = await chrome.storage.sync.get('apiKey');
+  if (savedKey) await checkConnection(portalUrl, savedKey, false);
+  else setStatus('connected', 'Portal URL saved');
+});
+
+btnTest.addEventListener('click', async () => {
+  const portalUrl = portalInput.value.trim().replace(/\/$/, '') || 'https://focus-astu-backend.purplebeach-cef0511d.southafricanorth.azurecontainerapps.io';
+  const { apiKey } = await chrome.storage.sync.get('apiKey');
+  if (!apiKey) {
+    setStatus('error', 'Save an API key first');
+    return;
+  }
+  await checkConnection(portalUrl, apiKey, false);
+});
+
+btnFlush.addEventListener('click', async () => {
+  btnFlush.disabled = true;
+  await chrome.runtime.sendMessage({ type: 'FLUSH_RETRY' });
+  await refreshQueueCount();
+  btnFlush.disabled = false;
+});
+
+// ── Connection check ──────────────────────────────────────────────────────────
+
+async function checkConnection(portalUrl, apiKey, silent) {
+  if (!silent) setStatus('checking', 'Testing connection…');
+
+  const result = await chrome.runtime.sendMessage({
+    type: 'TEST_CONNECTION',
+    portalUrl,
+    apiKey,
+  });
+
+  if (result && result.ok) {
+    setStatus('connected', 'Connected to portal');
+  } else {
+    const msg = (result && result.error) || `HTTP ${result && result.status}`;
+    setStatus('error', `Not connected: ${msg}`);
+  }
+}
+
+// ── Status display ────────────────────────────────────────────────────────────
+
+function setStatus(state, text) {
+  dot.className = 'dot';
+  if (state === 'connected')   dot.classList.add('connected');
+  if (state === 'error')       dot.classList.add('error');
+  if (state === 'checking')    dot.classList.add('checking');
+  statusText.textContent = text;
+}
+
+// ── Queue count ───────────────────────────────────────────────────────────────
+
+async function refreshQueueCount() {
+  const { retry_queue: q = [] } = await chrome.storage.local.get('retry_queue');
+  queueLabel.textContent = `Queued: ${q.length} submission${q.length === 1 ? '' : 's'}`;
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+async function hasSavedKey() {
+  const { apiKey } = await chrome.storage.sync.get('apiKey');
+  return !!apiKey;
+}
+
+function flash(el, color) {
+  el.style.borderColor = color === 'red' ? '#fc8181' : '#48bb78';
+  setTimeout(() => { el.style.borderColor = ''; }, 1500);
+}
+
+// Kick off
+init();
