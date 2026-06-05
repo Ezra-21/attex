@@ -1,0 +1,99 @@
+site_name: Focus ASTU CP Hub
+site_description: Documentation for the Focus ASTU Competitive Programming Hub
+site_url: https://ayanasamuel8.github.io/focus-astu-cp-hub-web
+repo_url: https://github.com/ayanasamuel8/focus-astu-cp-hub-web
+repo_name: ayanasamuel8/focus-astu-cp-hub-web
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - navigation.indexes
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - attr_list
+  - def_list
+  - footnotes
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - glightbox
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/focusastu/focus-astu-cp-hub-web
+    - icon: fontawesome/brands/telegram
+      link: https://t.me/focusastu
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - getting-started/index.md
+      - Setup Guide: getting-started/setup.md
+      - Environment Variables: getting-started/env-vars.md
+  - Backend:
+      - backend/index.md
+      - Architecture: backend/architecture.md
+      - API Reference: backend/api-reference.md
+      - Database Schema: backend/database.md
+      - Roles & Permissions: backend/roles.md
+  - Frontend:
+      - frontend/index.md
+      - Features: frontend/features.md
+      - Pages & Routes: frontend/pages.md
+  - Extension:
+      - extension/index.md
+      - Installation: extension/installation.md
+      - How It Works: extension/how-it-works.md
+  - Testing Guide:
+      - testing/index.md
+      - Environment Setup: testing/setup.md
+      - Test Scenarios: testing/scenarios.md
+      - Reporting Issues: testing/reporting-issues.md
+  - Privacy Policy: privacy.md
