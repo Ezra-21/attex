@@ -1,0 +1,42 @@
+# ── Stage 1: build the React (Vite) frontend ──────────────────────────────────
+FROM node:20-alpine AS frontend
+WORKDIR /app/frontend
+
+# Build-time config. Empty API base URL → the SPA calls the API on the same
+# origin it is served from. Supabase keys are baked into the bundle by Vite.
+ARG VITE_API_BASE_URL=""
+ARG VITE_SUPABASE_URL=""
+ARG VITE_SUPABASE_ANON_KEY=""
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+
+COPY frontend/package*.json ./
+# Retry install to tolerate flaky network conditions during builds.
+RUN for i in 1 2 3 4 5; do npm install --no-audit --no-fund && break || sleep 5; done
+COPY frontend/ ./
+RUN npm run build
+
+# ── Stage 2: build the Go API server ──────────────────────────────────────────
+FROM golang:1.26-alpine AS backend
+WORKDIR /src
+ENV GOPROXY=https://proxy.golang.org,direct
+COPY backend/go.mod backend/go.sum ./
+# Retry module download to tolerate flaky network conditions during builds.
+RUN for i in 1 2 3 4 5; do go mod download && break || sleep 5; done
+COPY backend/ ./
+RUN CGO_ENABLED=0 GOOS=linux go build -o /server ./cmd/server
+
+# ── Stage 3: minimal runtime image ────────────────────────────────────────────
+FROM alpine:3.20
+RUN apk --no-cache add ca-certificates tzdata
+WORKDIR /app
+
+# Go API binary
+COPY --from=backend /server ./server
+# Built SPA — Echo serves it from ./public on the same port as the API
+COPY --from=frontend /app/frontend/dist ./public
+
+ENV PORT=8080
+EXPOSE 8080
+CMD ["./server"]
