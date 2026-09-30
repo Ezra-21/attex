@@ -100,18 +100,6 @@ Work through these scenarios and note anything that doesn't behave as expected. 
 
 ---
 
-## Studio
-
-- [ ] Studio opens from the sidebar after login
-- [ ] Search for "prefix" lists the prefix-sum lesson
-- [ ] A lesson check accepts `O(1)` with odd spacing and rejects a blank answer
-- [ ] Marking the lesson done survives a refresh
-- [ ] The plan skips that lesson
-- [ ] A quiz submitted with the listed answers scores 100
-- [ ] Reshuffle on the arena keeps the same set when the seed does not change
-
----
-
 ## Edge cases & error states
 
 - [ ] Accessing a non-existent URL shows a 404 or redirect

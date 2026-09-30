@@ -32,7 +32,6 @@ Track solved problems, log contest standings, host community editorials, and man
 - **Profile pages** — public to all authenticated users; shows stats, activity heatmap, handles, and role history
 - **Admin panel** — user management, squad CRUD, invitation system (email via Resend), role assignment, contest sync
 - **Legal pages** — Privacy Policy and Terms of Service with consent at signup and profile completion
-- **Studio** — short lessons, drills, quizzes, a weekly plan, and review cards. Progress stays in the browser
 
 ---
 

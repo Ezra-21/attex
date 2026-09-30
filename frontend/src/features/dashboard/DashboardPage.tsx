@@ -7,7 +7,7 @@ import { AppShell } from '../../components/layout/AppShell';
 import { StatCard } from '../../components/ui/StatCard';
 import { Card } from '../../components/ui/Card';
 import { Btn } from '../../components/ui/Btn';
-import { Icon, type IconName } from '../../components/ui/Icon';
+import { Icon } from '../../components/ui/Icon';
 import { PlatformBadge, RoleBadge, SquadBadge, Verdict } from '../../components/ui/Badge';
 import { AnnouncementCard } from '../../components/ui/AnnouncementCard';
 import { useAuth } from '../../hooks/useAuth';
@@ -77,7 +77,7 @@ function SectionHead({ children, action }: { children: string; action?: React.Re
   );
 }
 
-function QuickLink({ icon, label, sub, color, to }: { icon: IconName; label: string; sub: string; color?: string; to: string }) {
+function QuickLink({ icon, label, sub, color, to }: { icon: string; label: string; sub: string; color?: string; to: string }) {
   const navigate = useNavigate();
   return (
     <div
@@ -261,7 +261,6 @@ export default function DashboardPage() {
           <SectionHead>Jump back in</SectionHead>
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(220px,1fr))', gap: 14 }}>
             <QuickLink icon="problems"  label="Problems"  sub="Browse & log solutions"     color={T.accent} to="/problems" />
-            <QuickLink icon="studio"    label="Studio"    sub="Lessons, drills, and review" color={T.accentText} to="/studio" />
             <QuickLink icon="contests"  label="Contests"  sub="View standings & upsolves"  color={T.warn}   to="/contests" />
             {inSquad && (
               <QuickLink icon="squad" label="My Squad" sub="Curriculum tracks" color={T.ac} to="/squad" />

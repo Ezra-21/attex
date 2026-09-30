@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"focus-astu-hub/internal/domain"
-	"focus-astu-hub/internal/studio"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -18,15 +17,15 @@ type Server struct {
 func NewServer(
 	jwks *JWKSCache,
 	users domain.UserRepository,
-	public *PublicHandler,
-	userH *UserHandler,
-	submH *SubmissionHandler,
-	problemH *ProblemHandler,
-	contestH *ContestHandler,
-	squadH *SquadHandler,
+	public     *PublicHandler,
+	userH      *UserHandler,
+	submH      *SubmissionHandler,
+	problemH   *ProblemHandler,
+	contestH   *ContestHandler,
+	squadH     *SquadHandler,
 	editorialH *EditorialHandler,
-	annH *AnnouncementHandler,
-	adminH *AdminHandler,
+	annH       *AnnouncementHandler,
+	adminH     *AdminHandler,
 ) *Server {
 	e := echo.New()
 	e.HideBanner = true
@@ -129,8 +128,6 @@ func NewServer(
 	admin.POST("/contests/sync", contestH.SyncAdmin)
 	admin.PUT("/system/signup", adminH.ToggleSignup)
 	admin.POST("/repair/stats", adminH.ReconcileStats)
-
-	NewStudioHandler(studio.NewService()).Register(active)
 
 	RegisterDocsRoutes(e)
 

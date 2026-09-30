@@ -28,19 +28,6 @@ import UsersPage from '../features/users/UsersPage';
 import AnnouncementsPage from '../features/announcements/AnnouncementsPage';
 import SettingsPage from '../features/settings/SettingsPage';
 
-const studio = () => import('../features/studio/pages');
-const StudioHomePage = lazy(() => studio().then((m) => ({ default: m.StudioHomePage })));
-const LessonPage = lazy(() => studio().then((m) => ({ default: m.LessonPage })));
-const DrillListPage = lazy(() => studio().then((m) => ({ default: m.DrillListPage })));
-const DrillPage = lazy(() => studio().then((m) => ({ default: m.DrillPage })));
-const QuizListPage = lazy(() => studio().then((m) => ({ default: m.QuizListPage })));
-const QuizPage = lazy(() => studio().then((m) => ({ default: m.QuizPage })));
-const PlanPage = lazy(() => studio().then((m) => ({ default: m.PlanPage })));
-const ReviewPage = lazy(() => studio().then((m) => ({ default: m.ReviewPage })));
-const PatternPage = lazy(() => studio().then((m) => ({ default: m.PatternPage })));
-const ArenaPage = lazy(() => studio().then((m) => ({ default: m.ArenaPage })));
-const BadgePage = lazy(() => studio().then((m) => ({ default: m.BadgePage })));
-
 const AdminPage = lazy(() => import('../features/admin/AdminPage'));
 
 // ── 404 / route-error pages ───────────────────────────────────────────────
@@ -166,17 +153,6 @@ const router = createBrowserRouter([
       { path: '/profile/:userId',        element: <PageErrorBoundary><ProfilePage /></PageErrorBoundary> },
       { path: '/users',                  element: <PageErrorBoundary><UsersPage /></PageErrorBoundary> },
       { path: '/settings/extension',     element: <PageErrorBoundary><SettingsPage /></PageErrorBoundary> },
-      { path: '/studio',                 element: <PageErrorBoundary><Suspense fallback={<Spinner />}><StudioHomePage /></Suspense></PageErrorBoundary> },
-      { path: '/studio/lessons/:lessonId', element: <PageErrorBoundary><Suspense fallback={<Spinner />}><LessonPage /></Suspense></PageErrorBoundary> },
-      { path: '/studio/drills',          element: <PageErrorBoundary><Suspense fallback={<Spinner />}><DrillListPage /></Suspense></PageErrorBoundary> },
-      { path: '/studio/drills/:drillId', element: <PageErrorBoundary><Suspense fallback={<Spinner />}><DrillPage /></Suspense></PageErrorBoundary> },
-      { path: '/studio/quizzes',         element: <PageErrorBoundary><Suspense fallback={<Spinner />}><QuizListPage /></Suspense></PageErrorBoundary> },
-      { path: '/studio/quizzes/:quizId', element: <PageErrorBoundary><Suspense fallback={<Spinner />}><QuizPage /></Suspense></PageErrorBoundary> },
-      { path: '/studio/plan',            element: <PageErrorBoundary><Suspense fallback={<Spinner />}><PlanPage /></Suspense></PageErrorBoundary> },
-      { path: '/studio/review',          element: <PageErrorBoundary><Suspense fallback={<Spinner />}><ReviewPage /></Suspense></PageErrorBoundary> },
-      { path: '/studio/patterns',        element: <PageErrorBoundary><Suspense fallback={<Spinner />}><PatternPage /></Suspense></PageErrorBoundary> },
-      { path: '/studio/arena',           element: <PageErrorBoundary><Suspense fallback={<Spinner />}><ArenaPage /></Suspense></PageErrorBoundary> },
-      { path: '/studio/badges',          element: <PageErrorBoundary><Suspense fallback={<Spinner />}><BadgePage /></Suspense></PageErrorBoundary> },
       // Squad — SQUAD_MEMBER+
       {
         element: <ProtectedRoute requiredRole="SQUAD_MEMBER" />,

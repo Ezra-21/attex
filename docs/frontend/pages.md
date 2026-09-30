@@ -40,16 +40,5 @@ Wrapped in `<AppShell>` → renders the sidebar + header.
 | `/users` | `UsersPage` | Any active | Member directory with search and squad filter |
 | `/announcements` | `AnnouncementsPage` | Any active | Global + squad announcements; post button for Squad Leads and Admins |
 | `/settings/extension` | `SettingsPage` | Any active | API key management for the browser extension |
-| `/studio` | `StudioHomePage` | Any active | Lesson tracks and search |
-| `/studio/lessons/:lessonId` | `LessonPage` | Any active | One lesson, checks, mark done |
-| `/studio/drills` | `DrillListPage` | Any active | Drill list |
-| `/studio/drills/:drillId` | `DrillPage` | Any active | Statement, hint, solution |
-| `/studio/quizzes` | `QuizListPage` | Any active | Topic quizzes |
-| `/studio/quizzes/:quizId` | `QuizPage` | Any active | Grade a quiz |
-| `/studio/plan` | `PlanPage` | Any active | Hours and track filter |
-| `/studio/review` | `ReviewPage` | Any active | Due cards |
-| `/studio/patterns` | `PatternPage` | Any active | When to reach for a tool |
-| `/studio/arena` | `ArenaPage` | Any active | A short set of drills |
-| `/studio/badges` | `BadgePage` | Any active | Local achievement progress |
 | `/squad` | `SquadPage` | `SQUAD_MEMBER`+ | Squad curriculum tree (Track → Topic → Problem) |
 | `/admin` | `AdminPage` | `ADMIN`+ | User management, invitations, squads, contest sync |
