@@ -113,6 +113,32 @@ Announcement bodies support **Markdown** and are rendered with GFM (GitHub Flavo
 
 ---
 
+### Studio — JWT + active account
+
+Catalog is compiled into the server. These routes do not read Postgres.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/studio/tracks` | Tracks |
+| `GET` | `/api/studio/patterns` | Pattern cards |
+| `GET` | `/api/studio/lessons` | Lesson summaries. `track`, `difficulty` optional |
+| `GET` | `/api/studio/lessons/:lessonID` | One lesson, including checks |
+| `POST` | `/api/studio/lessons/:lessonID/progress` | `{ "done": true }` |
+| `GET` | `/api/studio/drills` | Drills. Same filters as lessons |
+| `GET` | `/api/studio/drills/:drillID` | One drill, including the solution |
+| `POST` | `/api/studio/drills/:drillID/solve` | `{ "hints": 0 }` |
+| `GET` | `/api/studio/quizzes` | Quizzes |
+| `GET` | `/api/studio/quizzes/:quizID` | Questions |
+| `POST` | `/api/studio/quizzes/:quizID/grade` | `{ "answers": { "<id>": "..." } }` |
+| `GET` | `/api/studio/search?q=` | Lessons and drills |
+| `POST` | `/api/studio/plan` | `{ "hours": 4, "trackIds": [], "completed": [], "weakTags": [] }` |
+| `GET` | `/api/studio/review` | Card ids that are due |
+| `POST` | `/api/studio/review` | `{ "cardId": "...", "quality": 4 }` |
+| `POST` | `/api/studio/arena` | `{ "count": 3, "trackId": "", "seed": 1 }` |
+| `GET` | `/api/studio/achievements` | Badge progress for the caller |
+
+The web app grades and stores progress in `localStorage` and does not have to call these.
+
 ## Authentication
 
 All non-public endpoints require an `Authorization: Bearer <token>` header.
