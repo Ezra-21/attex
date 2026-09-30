@@ -32,10 +32,13 @@ const ICONS: Record<string, string> = {
   logout:       'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
   verse:        'M12 3v18M5 7h14M7 3h10v4a5 5 0 0 1-10 0z',
   tag:          'M20 7H9.5a2 2 0 0 0-1.4.6L3 13l5.1 5.4c.4.4.9.6 1.4.6H20a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1zM7 13h.01',
+  studio:       'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5zM8 7h8M8 11h8M8 15h5',
 };
 
+export type IconName = keyof typeof ICONS;
+
 interface IconProps {
-  name: keyof typeof ICONS;
+  name: string;
   size?: number;
   sw?: number;
   style?: CSSProperties;
@@ -57,7 +60,7 @@ export function Icon({ name, size = 18, sw = 1.8, style, fill, className }: Icon
       style={{ flexShrink: 0, ...style }}
       className={className}
     >
-      <path d={ICONS[name] ?? ''} />
+      <path d={ICONS[name as IconName] ?? ''} />
     </svg>
   );
 }
