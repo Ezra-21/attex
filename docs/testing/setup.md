@@ -28,7 +28,23 @@ After installation:
 2. Paste it into the extension popup.
 3. Set the Backend URL to the deployment URL.
 
-## 4. Use the Swagger UI
+## 4. Unit tests
+
+From `backend/`:
+
+```bash
+go test ./...
+```
+
+From `frontend/`:
+
+```bash
+npm test
+```
+
+CI runs both on push and on pull requests. See `.github/workflows/ci.yml`.
+
+## 5. Use the Swagger UI
 
 The interactive API explorer is at:
 ```
