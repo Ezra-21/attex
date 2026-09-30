@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { T } from '../../lib/tokens';
 import type { Role } from '../../lib/tokens';
-import { Icon } from '../ui/Icon';
+import { Icon, type IconName } from '../ui/Icon';
 import { Logo } from '../ui/Logo';
 import { Avatar } from '../ui/Avatar';
 import { useAuth } from '../../hooks/useAuth';
@@ -11,7 +11,7 @@ import { useWindowWidth, BREAKPOINTS } from '../../hooks/useWindowWidth';
 interface NavItem {
   id: string;
   label: string;
-  icon: string;
+  icon: IconName;
   path: (userId: string) => string;
   roles?: Role[];
   gated?: boolean;
@@ -20,6 +20,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { id: 'dashboard',     label: 'Dashboard',    icon: 'dashboard', path: () => '/dashboard' },
   { id: 'problems',      label: 'Problems',     icon: 'problems',  path: () => '/problems' },
+  { id: 'studio',        label: 'Studio',       icon: 'studio',    path: () => '/studio' },
   { id: 'editorials',    label: 'Editorials',   icon: 'book',      path: () => '/editorials' },
   { id: 'contests',      label: 'Contests',     icon: 'contests',  path: () => '/contests' },
   { id: 'squad',         label: 'My Squad',     icon: 'squad',     path: () => '/squad', roles: ['SQUAD_MEMBER', 'SQUAD_LEAD', 'ADMIN', 'SUPER_ADMIN'] },
