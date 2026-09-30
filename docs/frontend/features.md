@@ -83,6 +83,12 @@
 - Reconcile problem counts (repair tool)
 - Toggle open signup (Super Admin only)
 
+## Studio
+
+Opened from the sidebar. Lessons, drills, and quizzes for a few standard topics (prefix sums, two pointers, binary search, BFS, knapsack). A plan fits unfinished lessons into the hours you set. Review reschedules a card with the usual 0–5 quality score. Badges read the same local progress.
+
+Nothing here is written to Postgres. Closing the browser keeps the progress; another browser does not have it.
+
 ## Legal pages
 
 - `/privacy` — Privacy Policy
